@@ -1,0 +1,16 @@
+version: v2
+modules:
+  - path: proto
+    name: behave.build/behave/core
+
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
+    - PACKAGE
+    - WIRE
+    - WIRE_JSON

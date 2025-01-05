@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package behave.actions.v1;
+
+import "behave/actions/print/v1/print.proto";
+// import "behave/actions/sequence/v1/sequence.proto";
+
+///////////////////////////////////////////////////////////////////////////////
+// Inline actions that have children, to avoid cycles in protobuf imports...
+message SequenceArgument { 
+  string uuid = 1;
+  repeated ActionArgument children = 2;
+}
+
+message SequenceResult { 
+  repeated ActionResult children = 2;
+}
+
+message SequenceState {
+  RunStatus status = 1;
+  int32 index = 1;
+}
+
+message SequenceInput {}
+
+message SequenceOutput {}
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+message ActionArgument { 
+  oneof action {
+    behave.actions.print.v1.PrintArgument print = 101;
+    // behave.actions.sequence.v1.SequenceArgument sequence = 102;
+    behave.actions.v1.SequenceArgument sequence = 102;
+  }
+}
+
+message ActionResult { 
+  oneof action {
+    behave.actions.print.v1.PrintResult print = 1;
+    // behave.actions.sequence.v1.SequenceResult sequence = 2;
+    behave.actions.v1.SequenceResult sequence = 2;
+  }
+}
+
+
+

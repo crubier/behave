@@ -1,0 +1,23 @@
+{
+  "name": "@behave/root",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "private": true,
+  "workspaces": [
+    "typescript/*",
+    "examples/nextjs-agent"
+  ],
+  "trustedDependencies": [
+    "@behave/*"
+  ],
+  "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

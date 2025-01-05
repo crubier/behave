@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package behave.actions.v1;
+
+// Status of an action run
+//
+//                                  │  client
+//                                  │  begins
+//                   client         │       server
+//     ┌───────────┐ ends     ┌─────▼─────┐ ends    ┌──────────┐
+//     │ cancelled ◄──────────┤ requested ├─────────► rejected │
+//     └───────────┘          └─────┬─────┘         └──────────┘
+//                                  │  server
+//                                  │  begins
+//                   client         │       server
+//     ┌───────────┐ ends     ┌─────▼─────┐ ends    ┌──────────┐
+//     │  aborted  ◄──────────┤  started  ├─────────►terminated│
+//     └───────────┘          └┬─────────┬┘         └──────────┘
+//                     server  │         │  server
+//                   succeeds  │         │  fails
+//                     ┌───────▼───┐  ┌──▼───────┐
+//                     │ succeeded │  │  failed  │
+//                     └───────────┘  └──────────┘
+//
+//
+enum RunStatus {
+  // Unspecified status
+  RUN_STATUS_UNSPECIFIED = 0;
+
+  // Action is begun by client, waiting to be started
+  RUN_STATUS_REQUESTED = 1;
+
+  // Action was ended by client before it started
+  RUN_STATUS_CANCELLED = 2;
+
+  // Action was ended by server before it started
+  RUN_STATUS_REJECTED = 3;
+
+  // Action is started by server
+  RUN_STATUS_STARTED = 4;
+
+  // Action is started by server
+  RUN_STATUS_ABORTED = 5;
+
+  // Action is started by server
+  RUN_STATUS_TERMINATED = 6;
+
+  // Action completed successfully
+  RUN_STATUS_SUCCEEDED = 7;
+
+  // Action failed to complete
+  RUN_STATUS_FAILED = 8;
+}

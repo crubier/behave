@@ -1,0 +1,26 @@
+[package]
+name = "behave-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futures-core = "0.3.30"
+http = "1.0.0"
+pbjson = "0.6.0"
+pbjson-types = "0.6.0"
+prost = "0.12.3"
+serde = "1.0.197"
+tonic = "0.11.0"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.7.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+
+[build-dependencies]
+prost-build = "0.9"
+
+[lib]
+name = "behave_types"
+path = "src/lib.rs"
+
+[features]
+default = []
+## @@protoc_insertion_point(features)

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package behave.actions.print.v1;
+
+message PrintArgument { 
+  string message = 1;
+}
+
+message PrintResult {
+}
+
+message PrintState {
+}
+
+message PrintInput {}
+
+message PrintOutput {
+  string message = 1;
+}

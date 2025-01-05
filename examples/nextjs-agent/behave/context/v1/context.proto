@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package behave.context.v1;
+
+// Context defines the context in which the agent is operating
+message Context { 
+  HardwareContext hardware = 1;
+  DataContext data = 2;
+  NetworkContext network = 3;
+  EnvironmentContext environment = 4;
+}
+
+// Context can include info about hardware available on the agent
+message HardwareContext { 
+  bool has_camera = 1;
+}
+
+// Context can include data that the agent has access to
+message DataContext { 
+  bool has_vps_map = 1;
+}
+
+// Context can include info about the network connection
+message NetworkContext { 
+  bool is_online = 1;
+}
+
+// Context can include info about the environment
+message EnvironmentContext { 
+  string is_raining = 1;
+}

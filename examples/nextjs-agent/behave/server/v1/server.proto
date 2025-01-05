@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package behave.server.v1;
+
+import "behave/context/v1/context.proto";
+import "behave/actions/v1/actions.proto";
+import "behave/estimation/v1/estimation.proto";
+
+service BehaveExampleNextJsAgentService {
+  rpc Begin(BeginRequest) returns (BeginResponse) {}
+  rpc End(EndRequest) returns (EndResponse) {}
+
+  rpc Pause(PauseRequest) returns (PauseResponse) {}
+  rpc Resume(ResumeRequest) returns (ResumeResponse) {}
+
+  rpc Estimate(EstimateRequest) returns (EstimateResponse) {}
+
+}
+
+message BeginRequest { 
+  behave.actions.v1.ActionArgument action_argument = 1;
+}
+
+message BeginResponse { 
+  string run_uuid = 1;
+}
+
+message EndRequest { 
+  string run_uuid = 1;
+}
+
+message EndResponse { 
+  
+}
+
+message PauseRequest { 
+  string run_uuid = 1;
+}
+
+message PauseResponse { 
+  
+}
+
+
+message ResumeRequest { 
+  string run_uuid = 1;
+}
+
+message ResumeResponse { 
+  
+}
+
+
+message EstimateRequest { 
+  behave.actions.v1.ActionArgument action_argument = 1;
+  behave.context.v1.Context context = 2;
+}
+
+message EstimateResponse { 
+  behave.estimation.v1.Estimate estimate = 1;
+}
+
+
+// def simulate(
+//       context: Context, # Same for all actions, Fixed for all actions in a mission
+//       action_args: ActionArgs, # Type is different for each action type
+//       before: VehicleState, # Same for all actions types, Aggregated during a mission
+//     ) -> (Event[], AccumulatedMetrics, VehicleState, ActionResult):

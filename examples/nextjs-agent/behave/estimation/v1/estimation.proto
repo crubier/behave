@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package behave.estimation.v1;
+
+message Estimate {
+  string message = 1;
+}

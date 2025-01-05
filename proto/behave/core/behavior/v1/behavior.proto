@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package behave.core.behavior.v1;
+
+// BehaviorValue represents a dynamically typed value in the behavior tree.
+// Similar to google.protobuf.Any but specialized for behavior tree data.
+message BehaviorValue {
+  // The fully qualified type name of the encoded message
+  string behavior_type = 1;
+
+  // The serialized protocol buffer message
+  bytes value = 2;
+}
+
+// The service definition
+service BehaviorService {
+  // A simple RPC
+  rpc SayHello(SayHelloRequest) returns (SayHelloResponse) {}
+}
+
+// The request message containing the user's name
+message SayHelloRequest { string name = 1; }
+
+// The response message containing the greeting
+message SayHelloResponse { string message = 1; }
