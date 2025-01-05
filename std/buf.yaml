@@ -1,7 +1,4 @@
 version: v2
-modules:
-  - path: proto
-  - name: std
 deps:
   - buf.build/googleapis/googleapis
 lint:

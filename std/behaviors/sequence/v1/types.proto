@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package behaviors.sequence.v1;
+
+import "google/protobuf/any.proto";
+
+message SequenceArgument { 
+  repeated google.protobuf.Any children = 1;
+ }
+
+message SequenceStatus { 
+  string status = 1;
+}
+
+message SequenceResult { 
+  repeated google.protobuf.Any children = 1;
+}
+
+message SequenceState { }
+
+message SequenceInput { }
+
+message SequenceOutput { }

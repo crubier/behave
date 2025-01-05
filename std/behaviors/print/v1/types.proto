@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package behaviors.print.v1;
+
+message PrintArgument {
+  string text = 1;
+}
+
+message PrintStatus {
+  string status = 1;
+}
+
+message PrintResult { }
+
+message PrintState { }
+
+message PrintInput { }
+
+message PrintOutput { }

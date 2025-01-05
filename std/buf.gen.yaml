@@ -1,0 +1,29 @@
+version: v2
+managed:
+  enabled: true
+plugins:
+  - remote: buf.build/community/neoeinstein-prost:v0.4.0
+    out: gen
+    opt:
+      - bytes=.
+      - compile_well_known_types
+      - extern_path=.google.protobuf=::pbjson_types
+      - file_descriptor_set
+  - remote: buf.build/community/neoeinstein-tonic:v0.4.1
+    out: gen
+    opt:
+      - compile_well_known_types
+      - extern_path=.google.protobuf=::pbjson_types
+  - remote: buf.build/community/neoeinstein-prost-serde:v0.3.1
+    out: gen
+  - remote: buf.build/community/neoeinstein-prost-crate:v0.4.1
+    out: gen
+    opt:
+      - no_features
+      - include_file=lib.rs
+  - remote: buf.build/connectrpc/es:v1.6.1
+    out: gen
+  - remote: buf.build/bufbuild/es:v2.2.3
+    out: gen
+    opt:
+      - json_types=true

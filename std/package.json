@@ -1,0 +1,17 @@
+{
+  "name": "@behave/std",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./gen/index.js",
+  "types": "./gen/index.d.ts",
+  "scripts": {
+    "build": "buf generate"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^1.4.2"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^1.4.2"
+  }
+}

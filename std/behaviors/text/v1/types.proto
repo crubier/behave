@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package behaviors.text.v1;
+
+message TextArgument { string text = 1; }
+
+message TextStatus {
+  string status = 1;
+}
+
+message TextResult { string text = 1; }
+
+message TextState { }
+
+message TextInput { }
+
+message TextOutput { }
