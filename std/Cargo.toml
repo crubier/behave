@@ -1,0 +1,19 @@
+[package]
+name = "std"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "std"
+path = "gen/lib.rs"
+
+[[bin]]
+name = "print"
+path = "behaviors/print/v1/run.rs"
+
+[dependencies]
+# Common dependencies for Protobuf/gRPC
+prost = "0.12"
+tonic = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

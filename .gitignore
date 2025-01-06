@@ -103,3 +103,6 @@ logs
 *.swo
 .*.swp
 .*.swo
+
+# Generated files
+**/gen
