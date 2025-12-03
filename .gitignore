@@ -105,4 +105,4 @@ logs
 .*.swo
 
 # Generated files
-**/gen
+**/gen/*

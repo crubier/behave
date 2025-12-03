@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package behave.v1;
+
+import "behave/v1/common.proto";
+
+
+message State {
+  // Time 
+  float timestamp = 1;
+
+  // Pose 
+  Pose pose = 2;
+
+  // Energy
+  float energy_remaining  = 3;
+
+  // Photos
+  bool taking_photo = 4;
+
+  // Video
+  bool recording_video = 5;
+  
+  // Memory
+  float memory_used = 6;
+}
+
+
+message Event {
+  // Time
+  float timestamp = 1;
+
+  // Pose
+  Pose pose = 2;  
+
+  // Energy
+  float energy_used = 8;
+
+  // Photos
+  bool photo_taken = 9;
+  bool photo_saved = 10;
+  float photo_memory_used = 11;
+
+  // Video
+  bool video_started = 12;
+  bool video_stopped = 13;
+  float video_memory_used = 14;
+
+}
+
+message Events {
+  repeated Event events = 1;
+}
+
+
+message Metrics {
+  // Time
+  float duration = 1;
+
+  // Pose
+  float distance_traveled = 2;
+
+  // Energy
+  float energy_used = 3;
+
+  // Photos
+  int32 photo_number_taken = 4;
+  int32 photo_number_saved = 5;
+  float photo_memory_used = 6;
+
+  // Video
+  int32 video_number_started = 7;
+  int32 video_number_stopped = 8;
+  float video_memory_used = 9;
+}
+
+
+message Estimate {
+  Events events = 1;
+  Metrics metrics = 2;
+}
