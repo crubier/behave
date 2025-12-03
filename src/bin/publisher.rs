@@ -1,9 +1,9 @@
+use std::io::Cursor;
 use std::time::Duration;
 
 use anyhow::Result;
 use capnp::message::Builder;
 use capnp::serialize;
-use capnp::text;
 use iceoryx2::prelude::*;
 
 use behave::schema::messages_capnp::greeting;
@@ -32,23 +32,22 @@ fn main() -> Result<()> {
             let mut greeting_builder = message.init_root::<greeting::Builder>();
             greeting_builder.set_id(counter);
             let s = format!("Hello from publisher #{counter}");
-            let reader = text::Reader(s.as_bytes());
-            greeting_builder.set_text(reader);
+            greeting_builder.set_text(s.as_str().into());
         }
 
-        // Serialize into a temporary Vec<u8>
-        let mut bytes: Vec<u8> = Vec::new();
-        serialize::write_message(&mut bytes, &message)?;
-        let len = bytes.len();
-        if len + 4 > BUFFER_SIZE {
+        // Serialize directly into a fixed-size buffer which serves as the iceoryx2 payload
+        let mut buffer = [0u8; BUFFER_SIZE];
+        let mut cursor = Cursor::new(&mut buffer[4..]);
+        serialize::write_message(&mut cursor, &message)?;
+
+        let len = cursor.position() as usize;
+        if len > BUFFER_SIZE - 4 {
             eprintln!("serialized message too large for BUFFER_SIZE={BUFFER_SIZE}");
             continue;
         }
 
-        // Copy into a fixed-size buffer which serves as the iceoryx2 payload
-        let mut buffer = [0u8; BUFFER_SIZE];
+        // Store length prefix (little-endian) before the serialized message
         buffer[0..4].copy_from_slice(&(len as u32).to_le_bytes());
-        buffer[4..4 + len].copy_from_slice(&bytes);
 
         let sample = publisher.loan_uninit()?;
         let sample = sample.write_payload(buffer);
