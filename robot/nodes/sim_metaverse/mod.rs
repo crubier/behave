@@ -1,8 +1,8 @@
 //! Sim Metaverse node -- UE5 metaverse camera simulator.
 //!
-//! Subscribes to SimRequest, simulates extremely simple physics by
-//! linearly interpolating position and quaternion at fixed linear and
-//! angular speeds, and publishes SimStatus at 60 Hz.
+//! Subscribes to SimRequest, simulates simple physics by linearly
+//! interpolating position and quaternion, publishes SimStatus at 60 Hz,
+//! and sends a UDP pose packet to UE5.
 
 use std::net::UdpSocket;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -11,85 +11,62 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::schema::sim_request_capnp::sim_request;
 use behave::topics;
+use behave::topics::sim::CameraPose;
+use behave::topics::sim::status::SimStatus;
 
 /// UDP port for sending pose to UE5.
 const UE5_UDP_PORT: u16 = 9876;
 
 /// Flat pose packet sent over UDP to UE5 (64 bytes, little-endian).
-/// Must match the C++ struct in SimCameraPawn.cpp exactly.
 #[repr(C, packed)]
 struct UdpPosePacket {
-    x: f64,
-    y: f64,
-    z: f64,
-    qw: f64,
-    qx: f64,
-    qy: f64,
-    qz: f64,
+    x: f64, y: f64, z: f64,
+    qw: f64, qx: f64, qy: f64, qz: f64,
     utime: u64,
 }
 
 const TICK_HZ: u64 = 60;
 const TICK_DT: f64 = 1.0 / TICK_HZ as f64;
-const DEFAULT_LINEAR_SPEED: f64 = 2.0;   // metres per second
-const DEFAULT_ANGULAR_SPEED: f64 = 1.0;  // radians per second (approx)
+const DEFAULT_LINEAR_SPEED: f64 = 2.0;
+const DEFAULT_ANGULAR_SPEED: f64 = 1.0;
 
 fn env_f64(key: &str, default: f64) -> f64 {
     std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
-/// Simple 3D + quaternion state.
-struct Pose {
-    x: f64, y: f64, z: f64,
-    qw: f64, qx: f64, qy: f64, qz: f64,
-}
+struct Pose { x: f64, y: f64, z: f64, qw: f64, qx: f64, qy: f64, qz: f64 }
 
 impl Pose {
-    fn origin() -> Self {
-        Self { x: 0.0, y: 0.0, z: 0.0, qw: 1.0, qx: 0.0, qy: 0.0, qz: 0.0 }
-    }
+    fn origin() -> Self { Self { x: 0.0, y: 0.0, z: 0.0, qw: 1.0, qx: 0.0, qy: 0.0, qz: 0.0 } }
 }
 
-/// Linearly move `current` toward `target` by at most `max_step`.
 fn move_toward(current: f64, target: f64, max_step: f64) -> f64 {
     let diff = target - current;
     if diff.abs() <= max_step { target } else { current + diff.signum() * max_step }
 }
 
-/// Quaternion dot product.
-fn qdot(a: &Pose, b: &Pose) -> f64 {
-    a.qw * b.qw + a.qx * b.qx + a.qy * b.qy + a.qz * b.qz
-}
+fn qdot(a: &Pose, b: &Pose) -> f64 { a.qw*b.qw + a.qx*b.qx + a.qy*b.qy + a.qz*b.qz }
 
-/// Normalise quaternion in-place.
 fn qnorm(p: &mut Pose) {
-    let len = (p.qw * p.qw + p.qx * p.qx + p.qy * p.qy + p.qz * p.qz).sqrt();
+    let len = (p.qw*p.qw + p.qx*p.qx + p.qy*p.qy + p.qz*p.qz).sqrt();
     if len > 1e-12 { p.qw /= len; p.qx /= len; p.qy /= len; p.qz /= len; }
 }
 
-/// Step quaternion toward target by at most `max_angle` (linear interp + renorm).
 fn slerp_step(cur: &mut Pose, tgt: &Pose, max_angle: f64) {
     let dot = qdot(cur, tgt).clamp(-1.0, 1.0);
     let angle = dot.abs().acos() * 2.0;
-    if angle < 1e-6 {
-        cur.qw = tgt.qw; cur.qx = tgt.qx; cur.qy = tgt.qy; cur.qz = tgt.qz;
-        return;
-    }
+    if angle < 1e-6 { cur.qw = tgt.qw; cur.qx = tgt.qx; cur.qy = tgt.qy; cur.qz = tgt.qz; return; }
     let t = (max_angle / angle).min(1.0);
-    // ensure shortest path
     let sign = if dot < 0.0 { -1.0 } else { 1.0 };
-    cur.qw = cur.qw * (1.0 - t) + tgt.qw * sign * t;
-    cur.qx = cur.qx * (1.0 - t) + tgt.qx * sign * t;
-    cur.qy = cur.qy * (1.0 - t) + tgt.qy * sign * t;
-    cur.qz = cur.qz * (1.0 - t) + tgt.qz * sign * t;
+    cur.qw = cur.qw*(1.0-t) + tgt.qw*sign*t;
+    cur.qx = cur.qx*(1.0-t) + tgt.qx*sign*t;
+    cur.qy = cur.qy*(1.0-t) + tgt.qy*sign*t;
+    cur.qz = cur.qz*(1.0-t) + tgt.qz*sign*t;
     qnorm(cur);
 }
 
-fn now_us() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64
-}
+fn now_us() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64 }
 
 pub fn run() -> Result<()> {
     behave::logging::init("SimMeta");
@@ -107,7 +84,6 @@ pub fn run() -> Result<()> {
     let status_pub = topics::sim::status::publish(&node)?;
     info!("publishing {}", topics::sim::status::NAME);
 
-    // UDP socket for sending pose to UE5
     let udp = UdpSocket::bind("0.0.0.0:0")?;
     let ue5_addr = format!("127.0.0.1:{UE5_UDP_PORT}");
     info!("sending UDP pose to {ue5_addr}");
@@ -123,12 +99,10 @@ pub fn run() -> Result<()> {
         let t0 = Instant::now();
 
         // Drain incoming requests -- keep the latest
-        while let Some(typed) = topics::receive::<{ topics::sim::request::BUF }, sim_request::Owned>(&req_sub)? {
-            let req = typed.get()?;
-            let pose = req.get_pose()?;
+        while let Some(req) = topics::receive_native(&req_sub)? {
             target = Pose {
-                x: pose.get_x(), y: pose.get_y(), z: pose.get_z(),
-                qw: pose.get_qw(), qx: pose.get_qx(), qy: pose.get_qy(), qz: pose.get_qz(),
+                x: req.pose.x, y: req.pose.y, z: req.pose.z,
+                qw: req.pose.qw, qx: req.pose.qx, qy: req.pose.qy, qz: req.pose.qz,
             };
         }
 
@@ -142,49 +116,31 @@ pub fn run() -> Result<()> {
         let ang_step = angular_speed * TICK_DT;
         slerp_step(&mut current, &target, ang_step);
 
-        // Publish status
-        {
-            let mut msg = capnp::message::Builder::new_default();
-            {
-                let mut status = msg.init_root::<behave::schema::sim_status_capnp::sim_status::Builder<'_>>();
-                status.set_utime(now_us());
-                let mut pose = status.init_pose();
-                pose.set_x(current.x);
-                pose.set_y(current.y);
-                pose.set_z(current.z);
-                pose.set_qw(current.qw);
-                pose.set_qx(current.qx);
-                pose.set_qy(current.qy);
-                pose.set_qz(current.qz);
-            }
-            topics::sim::status::send(&status_pub, &msg)?;
-        }
+        let utime = now_us();
+
+        // Publish status via iceoryx2
+        topics::publish(&status_pub, SimStatus {
+            pose: CameraPose {
+                x: current.x, y: current.y, z: current.z,
+                qw: current.qw, qx: current.qx, qy: current.qy, qz: current.qz,
+            },
+            utime,
+        })?;
 
         // Send pose to UE5 over UDP
         {
             let pkt = UdpPosePacket {
-                x: current.x,
-                y: current.y,
-                z: current.z,
-                qw: current.qw,
-                qx: current.qx,
-                qy: current.qy,
-                qz: current.qz,
-                utime: now_us(),
+                x: current.x, y: current.y, z: current.z,
+                qw: current.qw, qx: current.qx, qy: current.qy, qz: current.qz,
+                utime,
             };
             let bytes: &[u8] = unsafe {
-                std::slice::from_raw_parts(
-                    &pkt as *const UdpPosePacket as *const u8,
-                    std::mem::size_of::<UdpPosePacket>(),
-                )
+                std::slice::from_raw_parts(&pkt as *const UdpPosePacket as *const u8, std::mem::size_of::<UdpPosePacket>())
             };
             let _ = udp.send_to(bytes, &ue5_addr);
         }
 
-        // Sleep for remainder of tick
         let elapsed = t0.elapsed();
-        if elapsed < tick {
-            std::thread::sleep(tick - elapsed);
-        }
+        if elapsed < tick { std::thread::sleep(tick - elapsed); }
     }
 }

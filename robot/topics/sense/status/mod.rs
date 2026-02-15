@@ -1,24 +1,25 @@
 //! Topic: behave/SenseStatus
 //!
-//! Fused navigation / vehicle state from Sense -> all nodes.
-//! Schema: sense_status.capnp (colocated)
+//! Fused navigation state from Sense -> all nodes.
 
-use crate::topics::{IoxNode, Pub, Sub};
+use iceoryx2::prelude::*;
+
+use crate::topics::{IoxNode, NativePub, NativeSub};
 
 pub const NAME: &str = "behave/SenseStatus";
-pub const BUF: usize = 4096;
 
-pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
-    crate::topics::create_publisher::<BUF>(node, NAME)
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy, ZeroCopySend)]
+pub struct SenseStatus {
+    pub easting_m: f64,
+    pub northing_m: f64,
+    pub altitude_m: f64,
 }
 
-pub fn subscribe(node: &IoxNode) -> anyhow::Result<Sub<BUF>> {
-    crate::topics::create_subscriber::<BUF>(node, NAME)
+pub fn publish(node: &IoxNode) -> anyhow::Result<NativePub<SenseStatus>> {
+    crate::topics::create_native_publisher::<SenseStatus>(node, NAME)
 }
 
-pub fn send(
-    pub_: &Pub<BUF>,
-    builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
-) -> anyhow::Result<()> {
-    crate::topics::send::<BUF>(pub_, builder)
+pub fn subscribe(node: &IoxNode) -> anyhow::Result<NativeSub<SenseStatus>> {
+    crate::topics::create_native_subscriber::<SenseStatus>(node, NAME)
 }

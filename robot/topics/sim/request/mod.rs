@@ -1,24 +1,25 @@
 //! Topic: behave/SimRequest
 //!
 //! Camera pose commands TO the simulator.
-//! Schema: sim_request.capnp (colocated)
 
-use crate::topics::{IoxNode, Pub, Sub};
+use iceoryx2::prelude::*;
+
+use crate::topics::{IoxNode, NativePub, NativeSub};
+use crate::topics::sim::CameraPose;
 
 pub const NAME: &str = "behave/SimRequest";
-pub const BUF: usize = 256;
 
-pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
-    crate::topics::create_publisher::<BUF>(node, NAME)
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy, ZeroCopySend)]
+pub struct SimRequest {
+    pub pose: CameraPose,
+    pub utime: u64,
 }
 
-pub fn subscribe(node: &IoxNode) -> anyhow::Result<Sub<BUF>> {
-    crate::topics::create_subscriber::<BUF>(node, NAME)
+pub fn publish(node: &IoxNode) -> anyhow::Result<NativePub<SimRequest>> {
+    crate::topics::create_native_publisher::<SimRequest>(node, NAME)
 }
 
-pub fn send(
-    pub_: &Pub<BUF>,
-    builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
-) -> anyhow::Result<()> {
-    crate::topics::send::<BUF>(pub_, builder)
+pub fn subscribe(node: &IoxNode) -> anyhow::Result<NativeSub<SimRequest>> {
+    crate::topics::create_native_subscriber::<SimRequest>(node, NAME)
 }

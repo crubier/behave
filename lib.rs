@@ -24,33 +24,11 @@ pub mod topics;
 #[path = "actions/mod.rs"]
 pub mod actions;
 
-// ── Generated Cap'n Proto schemas ──────────────────────────────
+// ── Generated Cap'n Proto schemas (actions only) ────────────────
 
 pub mod schema {
-    // Re-export so cross-schema references (e.g. mission -> action) resolve.
     pub use self::actions::action_capnp;
 
-    // ── Topic schemas (split per-topic) ────────────────────────
-    pub mod control_request_capnp {
-        include!(concat!(env!("OUT_DIR"), "/control_request_capnp.rs"));
-    }
-    pub mod control_response_capnp {
-        include!(concat!(env!("OUT_DIR"), "/control_response_capnp.rs"));
-    }
-    pub mod control_status_capnp {
-        include!(concat!(env!("OUT_DIR"), "/control_status_capnp.rs"));
-    }
-    pub mod sense_status_capnp {
-        include!(concat!(env!("OUT_DIR"), "/sense_status_capnp.rs"));
-    }
-    pub mod sim_request_capnp {
-        include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
-    }
-    pub mod sim_status_capnp {
-        include!(concat!(env!("OUT_DIR"), "/sim_status_capnp.rs"));
-    }
-
-    // ── Action schemas ─────────────────────────────────────────
     pub mod actions {
         pub mod action_capnp {
             include!(concat!(env!("OUT_DIR"), "/action_capnp.rs"));

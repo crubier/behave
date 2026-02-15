@@ -1,26 +1,89 @@
 //! Topic abstraction layer.
 //!
-//! Each topic module defines a topic name, buffer size, and provides
-//! `publish()`, `subscribe()`, `send()`, `receive()` helpers.
-//! Nodes just call these instead of manually wiring iceoryx2.
+//! Native topics publish `#[repr(C)]` structs directly via iceoryx2
+//! zero-copy shared memory (no serialization).
+//!
+//! The ActionRequest topic still uses capnp via IpcMessage envelopes.
+
+use std::fmt::Debug;
 
 use anyhow::Result;
 use iceoryx2::prelude::*;
 
-use crate::ipc::IpcMessage;
+// ── iceoryx2 node type ──────────────────────────────────────────
 
 /// iceoryx2 node type alias.
 pub type IoxNode = iceoryx2::node::Node<ipc::Service>;
 
-/// Publisher type alias parameterized by buffer size.
+// ── Native (zero-copy) pub/sub for #[repr(C)] structs ──────────
+
+/// Publisher for a native struct payload.
+pub type NativePub<T> =
+    iceoryx2::port::publisher::Publisher<ipc::Service, T, ()>;
+
+/// Subscriber for a native struct payload.
+pub type NativeSub<T> =
+    iceoryx2::port::subscriber::Subscriber<ipc::Service, T, ()>;
+
+/// Create a publisher for a native struct topic.
+pub fn create_native_publisher<T: Debug + ZeroCopySend>(
+    node: &IoxNode,
+    name: &str,
+) -> Result<NativePub<T>> {
+    let service = node
+        .service_builder(&name.try_into()?)
+        .publish_subscribe::<T>()
+        .open_or_create()?;
+    Ok(service.publisher_builder().create()?)
+}
+
+/// Create a subscriber for a native struct topic.
+pub fn create_native_subscriber<T: Debug + ZeroCopySend>(
+    node: &IoxNode,
+    name: &str,
+) -> Result<NativeSub<T>> {
+    let service = node
+        .service_builder(&name.try_into()?)
+        .publish_subscribe::<T>()
+        .open_or_create()?;
+    Ok(service.subscriber_builder().create()?)
+}
+
+/// Publish a native struct.
+pub fn publish<T: Debug + ZeroCopySend>(
+    pub_: &NativePub<T>,
+    value: T,
+) -> Result<()> {
+    let sample = pub_.loan_uninit()?;
+    sample.write_payload(value).send()?;
+    Ok(())
+}
+
+/// Receive a native struct. Returns None if no message available.
+pub fn receive_native<T: Debug + ZeroCopySend>(
+    sub: &NativeSub<T>,
+) -> Result<Option<T>>
+where
+    T: Copy,
+{
+    match sub.receive()? {
+        Some(sample) => Ok(Some(*sample)),
+        None => Ok(None),
+    }
+}
+
+// ── Legacy capnp pub/sub (ActionRequest only) ───────────────────
+
+use crate::ipc::IpcMessage;
+
+/// Legacy publisher (capnp envelope).
 pub type Pub<const N: usize> =
     iceoryx2::port::publisher::Publisher<ipc::Service, IpcMessage<N>, ()>;
 
-/// Subscriber type alias parameterized by buffer size.
+/// Legacy subscriber (capnp envelope).
 pub type Sub<const N: usize> =
     iceoryx2::port::subscriber::Subscriber<ipc::Service, IpcMessage<N>, ()>;
 
-/// Create a publisher for a named topic.
 pub fn create_publisher<const N: usize>(node: &IoxNode, name: &str) -> Result<Pub<N>> {
     let service = node
         .service_builder(&name.try_into()?)
@@ -29,7 +92,6 @@ pub fn create_publisher<const N: usize>(node: &IoxNode, name: &str) -> Result<Pu
     Ok(service.publisher_builder().create()?)
 }
 
-/// Create a subscriber for a named topic.
 pub fn create_subscriber<const N: usize>(node: &IoxNode, name: &str) -> Result<Sub<N>> {
     let service = node
         .service_builder(&name.try_into()?)
@@ -38,7 +100,7 @@ pub fn create_subscriber<const N: usize>(node: &IoxNode, name: &str) -> Result<S
     Ok(service.subscriber_builder().create()?)
 }
 
-/// Send a capnp message on a publisher.
+/// Send a capnp message (legacy, ActionRequest only).
 pub fn send<const N: usize>(
     pub_: &Pub<N>,
     builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
@@ -49,8 +111,7 @@ pub fn send<const N: usize>(
     Ok(())
 }
 
-/// Receive and deserialize a capnp message from a subscriber.
-/// Returns None if no message is available.
+/// Receive a capnp message (legacy, ActionRequest only).
 pub fn receive<const N: usize, T: capnp::traits::Owned>(
     sub: &Sub<N>,
 ) -> Result<Option<capnp::message::TypedReader<capnp::serialize::OwnedSegments, T>>> {

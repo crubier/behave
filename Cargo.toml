@@ -16,6 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
+iceoryx2-bb-container = "0.7"
 
 [build-dependencies]
 capnpc = "0.18"

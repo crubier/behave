@@ -1,7 +1,8 @@
 //! Behave node -- tick-based behavior tree executor.
 //!
-//! Fully action-agnostic: receives ActionArgs, delegates everything
+//! Fully action-agnostic: receives ActionArgs (capnp), delegates everything
 //! to `behave::actions::from_capnp()` and `behave::actions::tick()`.
+//! Topic I/O uses native iceoryx2 structs (no capnp).
 
 use std::time::Duration;
 
@@ -12,22 +13,17 @@ use log::{info, warn};
 use behave::actions::io::{ActionIO, ControlResponseSnapshot, ControlStatusSnapshot, SenseStatusSnapshot};
 use behave::actions::Tick;
 use behave::controls::CmdPublisher;
-use behave::ipc::CmdMessage;
 use behave::schema::actions::action_capnp::action_args;
-use behave::schema::control_response_capnp::control_response;
-use behave::schema::control_status_capnp::control_status;
-use behave::schema::sense_status_capnp::sense_status;
 use behave::topics;
+use behave::topics::control::request::ControlRequest;
 
 struct Iox2CmdPublisher<'a> {
-    inner: &'a topics::Pub<{ topics::control::request::BUF }>,
+    inner: &'a topics::NativePub<ControlRequest>,
 }
 
 impl<'a> CmdPublisher for Iox2CmdPublisher<'a> {
-    fn send_envelope(&self, envelope: CmdMessage) -> Result<()> {
-        let sample = self.inner.loan_uninit()?;
-        sample.write_payload(envelope).send()?;
-        Ok(())
+    fn send_cmd(&self, cmd: ControlRequest) -> Result<()> {
+        topics::publish(self.inner, cmd)
     }
 }
 
@@ -37,15 +33,15 @@ pub fn run() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    // ── Subscribe to action requests ──────────────────────────
+    // ── Subscribe to action requests (capnp, legacy) ─────────
     let action_sub = topics::behave::request::subscribe(&node)?;
     info!("subscribed to {}", topics::behave::request::NAME);
 
-    // ── Publish control requests ──────────────────────────────
+    // ── Publish control requests (native) ────────────────────
     let cmd_pub = topics::control::request::publish(&node)?;
     info!("publishing {}", topics::control::request::NAME);
 
-    // ── Subscribe to topics exposed to actions ────────────────
+    // ── Subscribe to native topics for ActionIO ──────────────
     let ctrl_resp_sub = topics::control::response::subscribe(&node)?;
     info!("subscribed to {}", topics::control::response::NAME);
 
@@ -67,7 +63,7 @@ pub fn run() -> Result<()> {
     let mut active_action: Option<(u64, behave::actions::ActionNode)> = None;
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        // ── Poll incoming action requests ────────────────────
+        // ── Poll action requests (capnp) ─────────────────────
         while let Some(typed) = topics::receive::<{ topics::behave::request::BUF }, action_args::Owned>(&action_sub)? {
             let args = typed.get()?;
             let id = args.get_id();
@@ -79,33 +75,30 @@ pub fn run() -> Result<()> {
             info!("=== action #{id} ready ===");
         }
 
-        // ── Poll control response ────────────────────────────
-        while let Some(typed) = topics::receive::<{ topics::control::response::BUF }, control_response::Owned>(&ctrl_resp_sub)? {
-            let r = typed.get()?;
+        // ── Poll control response (native) ───────────────────
+        while let Some(resp) = topics::receive_native(&ctrl_resp_sub)? {
             snap_ctrl_resp = ControlResponseSnapshot {
-                command_id: r.get_command_id(),
-                success: r.get_success(),
-                message: r.get_message()?.to_str().unwrap_or("").to_string(),
+                command_id: resp.command_id,
+                success: resp.success,
+                message: resp.message().to_string(),
             };
         }
 
-        // ── Poll control status ──────────────────────────────
-        while let Some(typed) = topics::receive::<{ topics::control::status::BUF }, control_status::Owned>(&ctrl_status_sub)? {
-            let s = typed.get()?;
+        // ── Poll control status (native) ─────────────────────
+        while let Some(status) = topics::receive_native(&ctrl_status_sub)? {
             snap_ctrl_status = ControlStatusSnapshot {
-                armed: s.get_armed(),
-                mode: s.get_mode().map_or(0, |m| m as u16),
-                battery_pct: s.get_battery_pct(),
+                armed: status.armed,
+                mode: status.mode as u16,
+                battery_pct: status.battery_pct,
             };
         }
 
-        // ── Poll sense status ────────────────────────────────
-        while let Some(typed) = topics::receive::<{ topics::sense::status::BUF }, sense_status::Owned>(&sense_sub)? {
-            let s = typed.get()?;
+        // ── Poll sense status (native) ───────────────────────
+        while let Some(sense) = topics::receive_native(&sense_sub)? {
             snap_sense = SenseStatusSnapshot {
-                easting_m: s.get_easting_m(),
-                northing_m: s.get_northing_m(),
-                altitude_m: s.get_altitude_m(),
+                easting_m: sense.easting_m,
+                northing_m: sense.northing_m,
+                altitude_m: sense.altitude_m,
             };
         }
 

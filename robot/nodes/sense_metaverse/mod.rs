@@ -1,7 +1,4 @@
 //! Sense Metaverse node -- subscribes to SimStatus and forwards as SenseStatus.
-//!
-//! Reads the simulated camera pose from the UE5 metaverse SimStatus
-//! and publishes it as vehicle navigation state on SenseStatus.
 
 use std::time::Duration;
 
@@ -9,8 +6,8 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::schema::sim_status_capnp::sim_status;
 use behave::topics;
+use behave::topics::sense::status::SenseStatus;
 
 pub fn run() -> Result<()> {
     behave::logging::init("SenseMeta");
@@ -27,18 +24,12 @@ pub fn run() -> Result<()> {
     info!("ready");
 
     while node.wait(Duration::from_millis(10)).is_ok() {
-        while let Some(typed) = topics::receive::<{ topics::sim::status::BUF }, sim_status::Owned>(&sim_sub)? {
-            let status = typed.get()?;
-            let pose = status.get_pose()?;
-
-            let mut msg = capnp::message::Builder::new_default();
-            {
-                let mut sense = msg.init_root::<behave::schema::sense_status_capnp::sense_status::Builder<'_>>();
-                sense.set_easting_m(pose.get_x());
-                sense.set_northing_m(pose.get_y());
-                sense.set_altitude_m(pose.get_z());
-            }
-            topics::sense::status::send(&sense_pub, &msg)?;
+        while let Some(status) = topics::receive_native(&sim_sub)? {
+            topics::publish(&sense_pub, SenseStatus {
+                easting_m: status.pose.x,
+                northing_m: status.pose.y,
+                altitude_m: status.pose.z,
+            })?;
         }
     }
 

@@ -1,8 +1,6 @@
 //! Control IRL node -- real hardware flight controller interface.
 //!
-//! Stub: will eventually interface with real flight controller hardware
-//! (e.g., MAVLink, UART, CAN bus).
-//! Subscribes to the same topics as control_sim.
+//! Stub: will eventually interface with real flight controller hardware.
 
 use std::time::Duration;
 

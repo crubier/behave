@@ -1,7 +1,6 @@
 //! Sense IRL node -- real hardware sensor data acquisition.
 //!
-//! Stub: will eventually read from real sensors (IMU, GPS, barometer)
-//! and publish fused navigation state on SenseStatus.
+//! Stub: will eventually read from real sensors.
 
 use std::time::Duration;
 
