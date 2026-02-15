@@ -3,6 +3,9 @@ name = "behave"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "lib.rs"
+
 [dependencies]
 capnp = "0.18"
 iceoryx2 = "0.7"
@@ -11,16 +14,10 @@ log = "0.4"
 env_logger = "0.11"
 tokio = { version = "1", features = ["full"] }
 
-# For semantic strings and related containers used by iceoryx2
-iceoryx2_bb_container = { package = "iceoryx2-bb-container", version = "0.7" }
-serde = "1"
-
 [build-dependencies]
 capnpc = "0.18"
 
-[[bin]]
-name = "robot"
-path = "robot/main.rs"
+# ── Node binaries ───────────────────────────────────────────────
 
 [[bin]]
 name = "node-sense"
@@ -38,6 +35,12 @@ path = "robot/nodes/behave/main.rs"
 name = "node-communicate"
 path = "robot/nodes/communicate/main.rs"
 
+# ── Runmodes ────────────────────────────────────────────────────
+
+[[bin]]
+name = "runmode-mock"
+path = "robot/runmodes/mock/main.rs"
+
 [[bin]]
 name = "mock-gcs"
-path = "robot/mock_gcs.rs"
+path = "robot/runmodes/mock/mock_gcs.rs"

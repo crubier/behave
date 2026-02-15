@@ -1,14 +1,13 @@
 fn main() {
     let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    // ── Schemas in schemas/ ─────────────────────────────────────
+    // ── Sim node schema (colocated) ────────────────────────────
     capnpc::CompilerCommand::new()
-        .src_prefix("schemas")
+        .src_prefix("robot/nodes/sim")
         .default_parent_module(vec!["schema".into()])
-        .file("schemas/messages.capnp")
-        .file("schemas/sim.capnp")
+        .file("robot/nodes/sim/sim.capnp")
         .run()
-        .expect("failed to compile schemas");
+        .expect("failed to compile sim schema");
 
     // ── Control node schema (colocated) ─────────────────────────
     capnpc::CompilerCommand::new()
@@ -19,8 +18,6 @@ fn main() {
         .expect("failed to compile controls schema");
 
     // ── Communicate node schema (colocated) ─────────────────────
-    // mission.capnp imports /actions/action.capnp, so we need the
-    // project root as an import path.
     capnpc::CompilerCommand::new()
         .src_prefix("robot/nodes/communicate")
         .default_parent_module(vec!["schema".into()])
@@ -30,9 +27,6 @@ fn main() {
         .expect("failed to compile mission schema");
 
     // ── Actions ─────────────────────────────────────────────────
-    // capnpc-rust derives Rust module names from default_parent_module
-    // + file stem only (directories are ignored), so all action schemas
-    // share the same parent module and must have unique file names.
     capnpc::CompilerCommand::new()
         .src_prefix("actions")
         .default_parent_module(vec!["schema".into(), "actions".into()])

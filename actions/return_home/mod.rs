@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::{self, CmdPublisher};
 use crate::schema::actions::return_home_capnp::{return_home_args, return_home_state, ReturnHomePhase};
 

@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::CmdPublisher;
 use crate::schema::actions::fallback_capnp::fallback_state;
 

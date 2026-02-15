@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::{self, CmdPublisher};
 use crate::schema::actions::take_photo_capnp::{take_photo_args, take_photo_state, TakePhotoPhase};
 

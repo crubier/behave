@@ -1,46 +1,32 @@
+//! Behave -- behavior tree framework for autonomous drones.
+//!
+//! Library root. Re-exports modules from `robot/` (general infra)
+//! and `actions/` (behavior tree action types).
+
 extern crate alloc;
 
-use std::hash::{Hash, Hasher};
+// ── Robot general infrastructure ───────────────────────────────
 
-use iceoryx2::prelude::{SemanticString, ZeroCopySend};
-use iceoryx2_bb_container::semantic_string;
-
-const GREETING_TEXT_CAPACITY: usize = 64;
-
-semantic_string! {
-    /// Greeting text content sent between publisher and subscriber.
-    name: GreetingText,
-    capacity: GREETING_TEXT_CAPACITY,
-    // No additional content/character constraints for now.
-    invalid_content: |_string: &[u8]| false,
-    invalid_characters: |_string: &[u8]| false,
-    normalize: |this: &GreetingText| { this.clone() }
-}
-
-#[repr(C)]
-#[derive(Clone, Debug, ZeroCopySend)]
-pub struct Greeting {
-    pub id: u64,
-    pub text: GreetingText,
-}
-
-pub mod action;
+#[path = "robot/controls.rs"]
 pub mod controls;
+
+#[path = "robot/ipc.rs"]
 pub mod ipc;
+
+#[path = "robot/logging.rs"]
 pub mod logging;
 
-#[path = "../actions/mod.rs"]
+// ── Actions ────────────────────────────────────────────────────
+
+#[path = "actions/mod.rs"]
 pub mod actions;
+
+// ── Generated Cap'n Proto schemas ──────────────────────────────
 
 pub mod schema {
     // Re-export so cross-schema references (e.g. mission -> action) resolve.
-    // capnpc derives module paths from default_parent_module + file stem,
-    // so mission_capnp.rs references crate::schema::action_capnp directly.
     pub use self::actions::action_capnp;
 
-    pub mod messages_capnp {
-        include!(concat!(env!("OUT_DIR"), "/messages_capnp.rs"));
-    }
     pub mod controls_capnp {
         include!(concat!(env!("OUT_DIR"), "/controls_capnp.rs"));
     }

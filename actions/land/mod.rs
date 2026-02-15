@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::{self, CmdPublisher};
 use crate::schema::actions::land_capnp::{land_args, land_state, LandPhase};
 

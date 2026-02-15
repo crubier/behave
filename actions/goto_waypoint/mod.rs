@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::{self, CmdPublisher};
 use crate::schema::actions::goto_waypoint_capnp::{goto_waypoint_args, goto_waypoint_state, GotoWaypointPhase};
 

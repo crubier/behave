@@ -9,7 +9,7 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::action::Tick;
+use behave::actions::Tick;
 use behave::controls::CmdPublisher;
 use behave::ipc::{self, CmdMessage, MissionMessage};
 use behave::schema::mission_capnp::mission;

@@ -76,9 +76,7 @@ dependencies = [
  "capnpc",
  "env_logger",
  "iceoryx2",
- "iceoryx2-bb-container",
  "log",
- "serde",
  "tokio",
 ]
 

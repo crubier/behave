@@ -1,6 +1,6 @@
 use log::info;
 
-use crate::action::Tick;
+use super::Tick;
 use crate::controls::{self, CmdPublisher};
 use crate::schema::actions::takeoff_capnp::{takeoff_args, takeoff_state, TakeoffPhase};
 

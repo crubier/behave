@@ -7,21 +7,27 @@ globs:
 
 # Architecture principles
 
-## Separation of concerns: behave.rs vs actions/
+## Project structure
 
-- `robot/nodes/behave.rs` MUST be fully action-agnostic. It should only know about a single top-level `ActionNode` type and call `start/tick/suspend/resume` on it. It must NOT contain match arms for individual action types, build trees, or define action-specific enums.
+The project has three top-level domains. There is no `src/` or `schemas/` directory.
 
-- All action-specific types, state machines, and tree-building logic belong in `actions/`. The `ActionNode` enum (which holds runtime state for any action variant) should be defined in `actions/mod.rs`, not in `behave.rs`.
+- **`robot/`** -- everything that runs on the robot: nodes, general infra (ipc, logging, controls, action tick types)
+- **`actions/`** -- behavior tree action definitions only (schema, Rust behavior, React UI per action type)
+- **`sim/`** -- simulation-related code and schemas
+- **`ui/`** -- Next.js web UI (imports React components from `actions/`)
+- **`lib.rs`** -- library crate root at project root, re-exports modules from `robot/` and `actions/` via `#[path]`
 
-- Composite actions (Sequence, Fallback) are responsible for managing their own children. They call `start()` on child nodes when they first tick them, not the tree builder. The tree builder should only construct the args tree; `start()` is called lazily by the parent composite.
+## Separation of concerns: behave node vs actions/
 
-## Action trait contract
+- `robot/nodes/behave/mod.rs` MUST be fully action-agnostic. It only calls `behave::actions::from_capnp()` and `behave::actions::tick()`. It must NOT contain match arms for individual action types, build trees, or define action-specific enums.
 
-Each action implements the `Action` trait (`src/action.rs`) with:
-- `start(args, cmd)` -> State: initialize from args, may send initial commands
-- `tick(state, input, cmd)` -> Tick<Output, Result>: advance one step
-- `suspend(state)` -> (State, Option<Result>): snapshot for later resumption
-- `resume(state, args, cmd)` -> State: restore from snapshot
+- All action-specific types, state machines, and tree-building logic belong in `actions/`. The `ActionNode` struct and dispatch logic live in `actions/mod.rs`.
+
+- Composite actions (Sequence, Fallback) are responsible for managing their own children. They call `start()` on child nodes lazily when they first tick them.
+
+## Action execution model
+
+Actions use capnp builders as mutable state (no native Rust mirror types). Each action exports `start()` and `tick()` functions that operate on `&mut ActionNode` containing capnp `message::Builder` objects. The `Tick<O, R>` enum (`robot/action.rs`) returns Running/Success/Failure.
 
 ## Colocation
 
@@ -37,11 +43,33 @@ Each action type lives in `actions/<type>/` with colocated:
 Each robot node lives in `robot/nodes/<node>/` with colocated:
 - `mod.rs` -- node runtime logic (iceoryx2 setup, main loop)
 - `main.rs` -- binary entry point
-- `*.capnp` -- node-specific schemas (e.g., `controls.capnp` for Control, `mission.capnp` for Communicate)
+- `*.capnp` -- node-specific schemas (e.g., `controls.capnp`, `mission.capnp`)
 
-Shared library code that nodes expose to other parts of the system (e.g., `CmdPublisher` trait, `send_*` helpers) stays in `src/` since it's part of the `behave` library crate used by actions and other nodes.
+### Runmodes
+
+A runmode is a launch configuration that lives in `robot/runmodes/<name>/`:
+- `main.rs` -- process launcher (spawns node binaries)
+- Additional binaries specific to that runmode (e.g., `mock_gcs.rs`)
+
+Current runmodes:
+- `mock` -- launches all nodes + a mock GCS that sends a test mission over UDP
+- `sim` (future) -- launches nodes connected to a simulator
+- `irl` (future) -- launches nodes for real hardware
+
+Run with: `cargo run --bin runmode-mock`, `cargo run --bin mock-gcs`
+
+### Robot general infrastructure
+
+Shared library code lives directly in `robot/`:
+- `robot/ipc.rs` -- capnp-over-iceoryx2 envelope (`IpcMessage<N>`)
+- `robot/logging.rs` -- shared logging setup
+- `robot/controls.rs` -- `CmdPublisher` trait and `send_*` command helpers
+
+The `Tick<O, R>` enum lives in `actions/mod.rs`.
+
+These are included in the library crate via `#[path]` in `lib.rs`.
 
 ## IPC
 
 - All inter-node communication uses Cap'n Proto serialized into `behave::ipc::IpcMessage<N>` envelopes over iceoryx2 pub/sub.
-- The `IpcMessage` type MUST live in the library crate (`src/ipc.rs`) so all binaries share the same fully-qualified type name for iceoryx2 cross-process type checking.
+- The `IpcMessage` type MUST live in the library crate so all binaries share the same fully-qualified type name for iceoryx2 cross-process type checking.
