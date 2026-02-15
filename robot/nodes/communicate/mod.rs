@@ -1,15 +1,16 @@
 //! Communicate node -- UDP server for GCS link.
 //!
-//! Listens for FlatBuffer serialized ActionNode messages on UDP port 9000,
+//! Listens for protobuf serialized ActionNode messages on UDP port 9000,
 //! validates them, and forwards to the Behave node via iceoryx2.
 
 use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{error, info, warn};
+use prost::Message;
 use tokio::net::UdpSocket;
 
+use behave::actions::action_proto::ActionNode;
 use behave::ipc::IpcMessage;
-use behave::schema::behave::actions::root_as_action_args;
 use behave::topics;
 
 const UDP_PORT: u16 = 9000;
@@ -43,11 +44,11 @@ async fn run_async() -> Result<()> {
         let (len, addr) = socket.recv_from(&mut buf).await?;
         info!("received {len} bytes from {addr}");
 
-        // Validate FlatBuffer
-        match root_as_action_args(&buf[..len]) {
-            Ok(action_args) => {
-                let id = action_args.id();
-                info!("decoded ActionArgs #{id} -> forwarding to Behave");
+        // Validate protobuf
+        match ActionNode::decode(&buf[..len]) {
+            Ok(action_node) => {
+                let id = action_node.id;
+                info!("decoded ActionNode #{id} -> forwarding to Behave");
 
                 // Forward raw bytes in IpcMessage envelope
                 let mut envelope = IpcMessage::<{ topics::behave::request::BUF }>::default();
@@ -59,7 +60,7 @@ async fn run_async() -> Result<()> {
                 info!("action #{id} published on iceoryx2");
             }
             Err(e) => {
-                error!("invalid FlatBuffer message: {e}");
+                error!("invalid protobuf message: {e}");
             }
         }
     }

@@ -4,8 +4,11 @@ use log::info;
 
 use super::{ActionIO, ActionNode, ActionArgsKind, ActionResultKind, Tick};
 use crate::controls;
-use crate::schema::behave::actions::ReturnHomeResultArgs;
 use crate::topics::control::status::MODE_RETURNING;
+
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.return_home.rs"));
+}
 
 pub fn start(node: &mut ActionNode, io: &ActionIO) {
     if let ActionArgsKind::ReturnHome(args) = &node.kind {
@@ -18,7 +21,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
     let mode = io.control_status.mode;
     if mode != MODE_RETURNING {
         info!("[#{}] RETURN HOME arrived (mode={})", node.id, mode);
-        Tick::Success(ActionResultKind::ReturnHome(ReturnHomeResultArgs { success: true }))
+        Tick::Success(ActionResultKind::ReturnHome(proto::ReturnHomeResult { success: true }))
     } else {
         info!("[#{}] RETURN HOME en route", node.id);
         Tick::Running(())

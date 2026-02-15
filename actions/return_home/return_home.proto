@@ -1,0 +1,20 @@
+syntax = "proto3";
+package behave.actions.return_home;
+
+message ReturnHomeArgs {
+    double altitude_m = 1;
+}
+
+message ReturnHomeResult {
+    bool success = 1;
+}
+
+message ReturnHomeState {
+    double remaining_distance_m = 1;
+}
+
+message ReturnHomeInput {}
+
+message ReturnHomeOutput {
+    double progress_pct = 1;
+}

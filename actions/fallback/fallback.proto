@@ -1,0 +1,21 @@
+syntax = "proto3";
+package behave.actions.fallback;
+
+message FallbackArgs {}
+
+message FallbackResult {
+    bool success = 1;
+    int32 succeeded_at_index = 2;
+    uint32 children_attempted = 3;
+}
+
+message FallbackState {
+    uint32 current_index = 1;
+}
+
+message FallbackInput {}
+
+message FallbackOutput {
+    uint32 current_step = 1;
+    uint32 total_steps = 2;
+}

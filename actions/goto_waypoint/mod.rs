@@ -4,7 +4,10 @@ use log::info;
 
 use super::{ActionIO, ActionNode, ActionArgsKind, ActionResultKind, Tick};
 use crate::controls;
-use crate::schema::behave::actions::GotoWaypointResultArgs;
+
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.goto_waypoint.rs"));
+}
 
 const ARRIVAL_TOLERANCE_M: f64 = 5.0;
 
@@ -23,7 +26,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
         let dist = (de * de + dn * dn).sqrt();
         if dist < ARRIVAL_TOLERANCE_M {
             info!("[#{}] GOTO arrived ({:.1}m from target)", node.id, dist);
-            Tick::Success(ActionResultKind::GotoWaypoint(GotoWaypointResultArgs {
+            Tick::Success(ActionResultKind::GotoWaypoint(proto::GotoWaypointResult {
                 final_easting_m: io.sense_status.easting_m,
                 final_northing_m: io.sense_status.northing_m,
                 final_altitude_m: io.sense_status.altitude_m,
@@ -34,7 +37,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
             Tick::Running(())
         }
     } else {
-        Tick::Failure(ActionResultKind::GotoWaypoint(GotoWaypointResultArgs {
+        Tick::Failure(ActionResultKind::GotoWaypoint(proto::GotoWaypointResult {
             final_easting_m: 0.0,
             final_northing_m: 0.0,
             final_altitude_m: 0.0,

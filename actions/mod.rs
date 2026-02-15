@@ -1,7 +1,7 @@
 //! Action tree runtime -- ActionNode and top-level dispatch.
 //!
-//! Uses generated FlatBuffer *ArgsArgs structs directly as owned data.
-//! No hand-written action types -- the .fbs schema is the single source of truth.
+//! Uses generated protobuf types from prost. Each action folder
+//! has a `.proto` schema and a `pub mod proto` with the generated code.
 
 pub mod io;
 pub mod sequence;
@@ -16,17 +16,23 @@ use std::fmt;
 
 use anyhow::{bail, Result};
 use log::info;
+use prost::Message;
 
 pub use io::ActionIO;
 
-use crate::schema::behave::actions::{
-    ActionArgs as FbActionArgs,
-    ActionArgsType,
-    TakeoffArgsArgs, LandArgsArgs, GotoWaypointArgsArgs,
-    ReturnHomeArgsArgs, TakePhotoArgsArgs, SequenceArgsArgs, FallbackArgsArgs,
-    TakeoffResultArgs, LandResultArgs, GotoWaypointResultArgs,
-    ReturnHomeResultArgs, TakePhotoResultArgs, SequenceResultArgs, FallbackResultArgs,
-};
+// Top-level composed proto types (ActionArgs, ActionNode, ActionResult)
+pub mod action_proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.rs"));
+}
+
+use action_proto::{action_args, ActionNode as ProtoActionNode};
+use takeoff::proto::TakeoffResult;
+use land::proto::LandResult;
+use goto_waypoint::proto::GotoWaypointResult;
+use return_home::proto::ReturnHomeResult;
+use take_photo::proto::TakePhotoResult;
+use sequence::proto::SequenceResult;
+use fallback::proto::FallbackResult;
 
 // ── Tick result type ───────────────────────────────────────────
 
@@ -36,28 +42,28 @@ pub enum Tick<O, R> {
     Failure(R),
 }
 
-// ── Action variant (wraps generated ArgsArgs structs) ──────────
+// ── Action variant (wraps prost-generated structs) ──────────────
 
 pub enum ActionArgsKind {
-    Sequence(SequenceArgsArgs),
-    Fallback(FallbackArgsArgs),
-    Takeoff(TakeoffArgsArgs),
-    Land(LandArgsArgs),
-    GotoWaypoint(GotoWaypointArgsArgs),
-    ReturnHome(ReturnHomeArgsArgs),
-    TakePhoto(TakePhotoArgsArgs),
+    Sequence(sequence::proto::SequenceArgs),
+    Fallback(fallback::proto::FallbackArgs),
+    Takeoff(takeoff::proto::TakeoffArgs),
+    Land(land::proto::LandArgs),
+    GotoWaypoint(goto_waypoint::proto::GotoWaypointArgs),
+    ReturnHome(return_home::proto::ReturnHomeArgs),
+    TakePhoto(take_photo::proto::TakePhotoArgs),
 }
 
-// ── Action result (wraps generated ResultArgs structs) ─────────
+// ── Action result (wraps prost-generated structs) ───────────────
 
 pub enum ActionResultKind {
-    Sequence(SequenceResultArgs),
-    Fallback(FallbackResultArgs),
-    Takeoff(TakeoffResultArgs),
-    Land(LandResultArgs),
-    GotoWaypoint(GotoWaypointResultArgs),
-    ReturnHome(ReturnHomeResultArgs),
-    TakePhoto(TakePhotoResultArgs),
+    Sequence(SequenceResult),
+    Fallback(FallbackResult),
+    Takeoff(TakeoffResult),
+    Land(LandResult),
+    GotoWaypoint(GotoWaypointResult),
+    ReturnHome(ReturnHomeResult),
+    TakePhoto(TakePhotoResult),
 }
 
 impl fmt::Debug for ActionResultKind {
@@ -105,46 +111,37 @@ pub struct ActionNode {
     pub children: Vec<ActionNode>,
 }
 
-// ── Parse FlatBuffer into ActionNode ───────────────────────────
+// ── Parse protobuf into ActionNode ─────────────────────────────
 
-pub fn from_flatbuf(fb: &FbActionArgs<'_>) -> Result<ActionNode> {
-    let id = fb.id();
+pub fn from_proto(pb: &ProtoActionNode) -> Result<ActionNode> {
+    let id = pb.id;
 
-    let kind = match fb.action_type() {
-        ActionArgsType::SequenceArgs => ActionArgsKind::Sequence(SequenceArgsArgs {}),
-        ActionArgsType::FallbackArgs => ActionArgsKind::Fallback(FallbackArgsArgs {}),
-        ActionArgsType::TakeoffArgs => {
-            let a = fb.action_as_takeoff_args().unwrap();
-            ActionArgsKind::Takeoff(TakeoffArgsArgs { altitude_m: a.altitude_m() })
-        }
-        ActionArgsType::LandArgs => {
-            let a = fb.action_as_land_args().unwrap();
-            ActionArgsKind::Land(LandArgsArgs { descent_speed_ms: a.descent_speed_ms() })
-        }
-        ActionArgsType::GotoWaypointArgs => {
-            let a = fb.action_as_goto_waypoint_args().unwrap();
-            ActionArgsKind::GotoWaypoint(GotoWaypointArgsArgs {
-                easting_m: a.easting_m(), northing_m: a.northing_m(),
-                altitude_m: a.altitude_m(), speed_ms: a.speed_ms(),
-            })
-        }
-        ActionArgsType::ReturnHomeArgs => {
-            let a = fb.action_as_return_home_args().unwrap();
-            ActionArgsKind::ReturnHome(ReturnHomeArgsArgs { altitude_m: a.altitude_m() })
-        }
-        ActionArgsType::TakePhotoArgs => ActionArgsKind::TakePhoto(TakePhotoArgsArgs {}),
-        _ => bail!("unknown action type for node #{id}"),
+    let args = pb.args.as_ref().ok_or_else(|| anyhow::anyhow!("missing args for node #{id}"))?;
+    let action = args.action.as_ref().ok_or_else(|| anyhow::anyhow!("missing action variant for node #{id}"))?;
+
+    let kind = match action {
+        action_args::Action::Sequence(a) => ActionArgsKind::Sequence(a.clone()),
+        action_args::Action::Fallback(a) => ActionArgsKind::Fallback(a.clone()),
+        action_args::Action::Takeoff(a) => ActionArgsKind::Takeoff(a.clone()),
+        action_args::Action::Land(a) => ActionArgsKind::Land(a.clone()),
+        action_args::Action::GotoWaypoint(a) => ActionArgsKind::GotoWaypoint(a.clone()),
+        action_args::Action::ReturnHome(a) => ActionArgsKind::ReturnHome(a.clone()),
+        action_args::Action::TakePhoto(a) => ActionArgsKind::TakePhoto(a.clone()),
     };
 
-    let children = if let Some(kids) = fb.children() {
-        (0..kids.len()).map(|i| from_flatbuf(&kids.get(i))).collect::<Result<Vec<_>>>()?
-    } else {
-        Vec::new()
-    };
+    let children = pb.children.iter()
+        .map(|child| from_proto(child))
+        .collect::<Result<Vec<_>>>()?;
 
     info!("built action #{id} ({} children)", children.len());
 
     Ok(ActionNode { id, kind, started: false, current_index: 0, children })
+}
+
+/// Decode a serialized protobuf ActionNode from bytes.
+pub fn from_bytes(bytes: &[u8]) -> Result<ActionNode> {
+    let pb = ProtoActionNode::decode(bytes)?;
+    from_proto(&pb)
 }
 
 // ── Start / Tick dispatch ──────────────────────────────────────

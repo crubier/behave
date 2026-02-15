@@ -21,10 +21,3 @@ pub mod topics;
 
 #[path = "actions/mod.rs"]
 pub mod actions;
-
-// ── Generated FlatBuffer schemas ────────────────────────────────
-
-#[allow(unused_imports, clippy::all, warnings)]
-pub mod schema {
-    include!(concat!(env!("OUT_DIR"), "/flatbuffers/mod.rs"));
-}

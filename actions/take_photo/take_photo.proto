@@ -1,0 +1,16 @@
+syntax = "proto3";
+package behave.actions.take_photo;
+
+message TakePhotoArgs {}
+
+message TakePhotoResult {
+    bool success = 1;
+}
+
+message TakePhotoState {}
+
+message TakePhotoInput {}
+
+message TakePhotoOutput {
+    bool captured = 1;
+}

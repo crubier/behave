@@ -1,6 +1,6 @@
 //! Behave node -- tick-based behavior tree executor.
 //!
-//! Receives FlatBuffer ActionArgs, parses into native Rust types,
+//! Receives protobuf ActionNode, parses into native Rust types,
 //! then ticks the behavior tree using ActionIO.
 
 use std::time::Duration;
@@ -12,7 +12,6 @@ use log::{info, warn};
 use behave::actions::io::ActionIO;
 use behave::actions::Tick;
 use behave::controls::CmdPublisher;
-use behave::schema::behave::actions::root_as_action_args;
 use behave::topics;
 use behave::topics::control::request::ControlRequest;
 use behave::topics::control::response::ControlResponse;
@@ -61,23 +60,17 @@ pub fn run() -> Result<()> {
     let mut active_action: Option<(u64, behave::actions::ActionNode)> = None;
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        // ── Poll action requests (FlatBuffer in IpcMessage) ──
+        // ── Poll action requests (protobuf in IpcMessage) ────
         while let Some(sample) = action_sub.receive()? {
             let bytes = &sample.data[..sample.len as usize];
-            match root_as_action_args(bytes) {
-                Ok(fb_args) => {
-                    let id = fb_args.id();
+            match behave::actions::from_bytes(bytes) {
+                Ok(root) => {
+                    let id = root.id;
                     info!("=== action #{id} received ===");
-
-                    match behave::actions::from_flatbuf(&fb_args) {
-                        Ok(root) => {
-                            active_action = Some((id, root));
-                            info!("=== action #{id} ready ===");
-                        }
-                        Err(e) => warn!("failed to parse action tree: {e}"),
-                    }
+                    active_action = Some((id, root));
+                    info!("=== action #{id} ready ===");
                 }
-                Err(e) => warn!("invalid FlatBuffer: {e}"),
+                Err(e) => warn!("failed to parse action tree: {e}"),
             }
         }
 

@@ -2,18 +2,16 @@
 
 use anyhow::Result;
 use log::info;
+use prost::Message;
 use tokio::net::UdpSocket;
 
-use behave::schema::behave::actions::{
-    ActionArgs as FbActionArgs, ActionArgsArgs as FbActionArgsArgs,
-    ActionArgsType,
-    TakeoffArgs, TakeoffArgsArgs,
-    LandArgs, LandArgsArgs,
-    GotoWaypointArgs, GotoWaypointArgsArgs,
-    ReturnHomeArgs, ReturnHomeArgsArgs,
-    TakePhotoArgs, TakePhotoArgsArgs,
-    SequenceArgs,
-};
+use behave::actions::action_proto::{action_args, ActionArgs, ActionNode};
+use behave::actions::takeoff::proto::TakeoffArgs;
+use behave::actions::land::proto::LandArgs;
+use behave::actions::goto_waypoint::proto::GotoWaypointArgs;
+use behave::actions::return_home::proto::ReturnHomeArgs;
+use behave::actions::take_photo::proto::TakePhotoArgs;
+use behave::actions::sequence::proto::SequenceArgs;
 
 const TARGET: &str = "127.0.0.1:9000";
 const STARTUP_DELAY_SECS: u64 = 3;
@@ -28,67 +26,46 @@ pub fn run() -> Result<()> {
     rt.block_on(async { run_async().await })
 }
 
+fn leaf(id: u64, action: action_args::Action) -> ActionNode {
+    ActionNode {
+        id,
+        args: Some(ActionArgs { action: Some(action) }),
+        children: vec![],
+    }
+}
+
 async fn run_async() -> Result<()> {
     info!("waiting {STARTUP_DELAY_SECS}s for other nodes to start...");
     tokio::time::sleep(std::time::Duration::from_secs(STARTUP_DELAY_SECS)).await;
 
     info!("building sample action tree...");
 
-    let mut builder = flatbuffers::FlatBufferBuilder::with_capacity(2048);
+    let root = ActionNode {
+        id: 100,
+        args: Some(ActionArgs {
+            action: Some(action_args::Action::Sequence(SequenceArgs {})),
+        }),
+        children: vec![
+            leaf(101, action_args::Action::Takeoff(TakeoffArgs { altitude_m: 50.0 })),
+            leaf(102, action_args::Action::GotoWaypoint(GotoWaypointArgs {
+                easting_m: 500.0, northing_m: 300.0, altitude_m: 80.0, speed_ms: 15.0,
+            })),
+            leaf(103, action_args::Action::TakePhoto(TakePhotoArgs {})),
+            leaf(104, action_args::Action::GotoWaypoint(GotoWaypointArgs {
+                easting_m: 1200.0, northing_m: -150.0, altitude_m: 80.0, speed_ms: 15.0,
+            })),
+            leaf(105, action_args::Action::TakePhoto(TakePhotoArgs {})),
+            leaf(106, action_args::Action::ReturnHome(ReturnHomeArgs { altitude_m: 60.0 })),
+            leaf(107, action_args::Action::Land(LandArgs { descent_speed_ms: 2.0 })),
+        ],
+    };
 
-    let takeoff_args = TakeoffArgs::create(&mut builder, &TakeoffArgsArgs { altitude_m: 50.0 });
-    let takeoff = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 101, action_type: ActionArgsType::TakeoffArgs, action: Some(takeoff_args.as_union_value()), children: None,
-    });
-
-    let goto1_args = GotoWaypointArgs::create(&mut builder, &GotoWaypointArgsArgs {
-        easting_m: 500.0, northing_m: 300.0, altitude_m: 80.0, speed_ms: 15.0,
-    });
-    let goto1 = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 102, action_type: ActionArgsType::GotoWaypointArgs, action: Some(goto1_args.as_union_value()), children: None,
-    });
-
-    let photo1_args = TakePhotoArgs::create(&mut builder, &TakePhotoArgsArgs {});
-    let photo1 = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 103, action_type: ActionArgsType::TakePhotoArgs, action: Some(photo1_args.as_union_value()), children: None,
-    });
-
-    let goto2_args = GotoWaypointArgs::create(&mut builder, &GotoWaypointArgsArgs {
-        easting_m: 1200.0, northing_m: -150.0, altitude_m: 80.0, speed_ms: 15.0,
-    });
-    let goto2 = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 104, action_type: ActionArgsType::GotoWaypointArgs, action: Some(goto2_args.as_union_value()), children: None,
-    });
-
-    let photo2_args = TakePhotoArgs::create(&mut builder, &TakePhotoArgsArgs {});
-    let photo2 = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 105, action_type: ActionArgsType::TakePhotoArgs, action: Some(photo2_args.as_union_value()), children: None,
-    });
-
-    let rth_args = ReturnHomeArgs::create(&mut builder, &ReturnHomeArgsArgs { altitude_m: 60.0 });
-    let rth = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 106, action_type: ActionArgsType::ReturnHomeArgs, action: Some(rth_args.as_union_value()), children: None,
-    });
-
-    let land_args = LandArgs::create(&mut builder, &LandArgsArgs { descent_speed_ms: 2.0 });
-    let land = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 107, action_type: ActionArgsType::LandArgs, action: Some(land_args.as_union_value()), children: None,
-    });
-
-    let children = builder.create_vector(&[takeoff, goto1, photo1, goto2, photo2, rth, land]);
-    let seq_args = SequenceArgs::create(&mut builder, &Default::default());
-    let root = FbActionArgs::create(&mut builder, &FbActionArgsArgs {
-        id: 100, action_type: ActionArgsType::SequenceArgs, action: Some(seq_args.as_union_value()), children: Some(children),
-    });
-
-    builder.finish(root, None);
-    let buf = builder.finished_data();
-
+    let buf = root.encode_to_vec();
     info!("action tree serialized ({} bytes)", buf.len());
     info!("sending to {TARGET}...");
 
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
-    socket.send_to(buf, TARGET).await?;
+    socket.send_to(&buf, TARGET).await?;
 
     info!("action tree sent!");
     Ok(())

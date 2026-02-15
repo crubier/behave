@@ -1,0 +1,21 @@
+syntax = "proto3";
+package behave.actions.takeoff;
+
+message TakeoffArgs {
+    double altitude_m = 1;
+}
+
+message TakeoffResult {
+    double reached_altitude_m = 1;
+    bool success = 2;
+}
+
+message TakeoffState {
+    double current_altitude_m = 1;
+}
+
+message TakeoffInput {}
+
+message TakeoffOutput {
+    double progress_pct = 1;
+}

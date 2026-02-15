@@ -3,7 +3,10 @@
 use log::info;
 
 use super::{ActionIO, ActionNode, ActionResultKind, Tick};
-use crate::schema::behave::actions::SequenceResultArgs;
+
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.sequence.rs"));
+}
 
 pub fn start(node: &mut ActionNode) {
     let child_count = node.children.len();
@@ -16,7 +19,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
     let child_count = node.children.len();
 
     if idx >= child_count {
-        return Tick::Success(ActionResultKind::Sequence(SequenceResultArgs {
+        return Tick::Success(ActionResultKind::Sequence(proto::SequenceResult {
             success: true,
             children_completed: child_count as u32,
             failed_at_index: -1,
@@ -44,7 +47,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
 
             if next >= child_count {
                 info!("[#{}] SEQUENCE all children done", node.id);
-                Tick::Success(ActionResultKind::Sequence(SequenceResultArgs {
+                Tick::Success(ActionResultKind::Sequence(proto::SequenceResult {
                     success: true,
                     children_completed: child_count as u32,
                     failed_at_index: -1,
@@ -55,7 +58,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
         }
         Tick::Failure(_) => {
             info!("[#{}] SEQUENCE child {} FAILED -- aborting", node.id, idx);
-            Tick::Failure(ActionResultKind::Sequence(SequenceResultArgs {
+            Tick::Failure(ActionResultKind::Sequence(proto::SequenceResult {
                 success: false,
                 children_completed: idx as u32,
                 failed_at_index: idx as i32,

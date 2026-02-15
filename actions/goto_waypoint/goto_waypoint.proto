@@ -1,0 +1,30 @@
+syntax = "proto3";
+package behave.actions.goto_waypoint;
+
+message GotoWaypointArgs {
+    double easting_m = 1;
+    double northing_m = 2;
+    double altitude_m = 3;
+    double speed_ms = 4;
+}
+
+message GotoWaypointResult {
+    double final_easting_m = 1;
+    double final_northing_m = 2;
+    double final_altitude_m = 3;
+    bool success = 4;
+}
+
+message GotoWaypointState {
+    double current_easting_m = 1;
+    double current_northing_m = 2;
+    double current_altitude_m = 3;
+    double remaining_distance_m = 4;
+}
+
+message GotoWaypointInput {}
+
+message GotoWaypointOutput {
+    double progress_pct = 1;
+    double remaining_distance_m = 2;
+}

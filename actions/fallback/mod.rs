@@ -3,7 +3,10 @@
 use log::info;
 
 use super::{ActionIO, ActionNode, ActionResultKind, Tick};
-use crate::schema::behave::actions::FallbackResultArgs;
+
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.fallback.rs"));
+}
 
 pub fn start(node: &mut ActionNode) {
     let child_count = node.children.len();
@@ -16,7 +19,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
     let child_count = node.children.len();
 
     if idx >= child_count {
-        return Tick::Failure(ActionResultKind::Fallback(FallbackResultArgs {
+        return Tick::Failure(ActionResultKind::Fallback(proto::FallbackResult {
             success: false,
             succeeded_at_index: -1,
             children_attempted: child_count as u32,
@@ -29,7 +32,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
         Tick::Running(()) => Tick::Running(()),
         Tick::Success(_) => {
             info!("[#{}] FALLBACK child {} succeeded -- done", node.id, idx);
-            Tick::Success(ActionResultKind::Fallback(FallbackResultArgs {
+            Tick::Success(ActionResultKind::Fallback(proto::FallbackResult {
                 success: true,
                 succeeded_at_index: idx as i32,
                 children_attempted: (idx + 1) as u32,
@@ -45,7 +48,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> 
 
             if next >= child_count {
                 info!("[#{}] FALLBACK all children failed", node.id);
-                Tick::Failure(ActionResultKind::Fallback(FallbackResultArgs {
+                Tick::Failure(ActionResultKind::Fallback(proto::FallbackResult {
                     success: false,
                     succeeded_at_index: -1,
                     children_attempted: child_count as u32,

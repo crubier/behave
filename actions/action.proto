@@ -1,0 +1,88 @@
+syntax = "proto3";
+package behave.actions;
+
+import "takeoff/takeoff.proto";
+import "land/land.proto";
+import "goto_waypoint/goto_waypoint.proto";
+import "return_home/return_home.proto";
+import "take_photo/take_photo.proto";
+import "sequence/sequence.proto";
+import "fallback/fallback.proto";
+
+// ── Args union ──────────────────────────────────────────────────
+
+message ActionArgs {
+    oneof action {
+        behave.actions.sequence.SequenceArgs          sequence       = 1;
+        behave.actions.fallback.FallbackArgs          fallback       = 2;
+        behave.actions.takeoff.TakeoffArgs            takeoff        = 3;
+        behave.actions.land.LandArgs                  land           = 4;
+        behave.actions.goto_waypoint.GotoWaypointArgs goto_waypoint  = 5;
+        behave.actions.return_home.ReturnHomeArgs     return_home    = 6;
+        behave.actions.take_photo.TakePhotoArgs       take_photo     = 7;
+    }
+}
+
+// ── Result union ────────────────────────────────────────────────
+
+message ActionResult {
+    oneof result {
+        behave.actions.sequence.SequenceResult          sequence       = 1;
+        behave.actions.fallback.FallbackResult          fallback       = 2;
+        behave.actions.takeoff.TakeoffResult            takeoff        = 3;
+        behave.actions.land.LandResult                  land           = 4;
+        behave.actions.goto_waypoint.GotoWaypointResult goto_waypoint  = 5;
+        behave.actions.return_home.ReturnHomeResult     return_home    = 6;
+        behave.actions.take_photo.TakePhotoResult       take_photo     = 7;
+    }
+}
+
+// ── State union ──────────────────────────────────────────────────
+
+message ActionState {
+    oneof state {
+        behave.actions.sequence.SequenceState          sequence       = 1;
+        behave.actions.fallback.FallbackState          fallback       = 2;
+        behave.actions.takeoff.TakeoffState            takeoff        = 3;
+        behave.actions.land.LandState                  land           = 4;
+        behave.actions.goto_waypoint.GotoWaypointState goto_waypoint  = 5;
+        behave.actions.return_home.ReturnHomeState     return_home    = 6;
+        behave.actions.take_photo.TakePhotoState       take_photo     = 7;
+    }
+}
+
+// ── Input union ─────────────────────────────────────────────────
+
+message ActionInput {
+    oneof input {
+        behave.actions.sequence.SequenceInput          sequence       = 1;
+        behave.actions.fallback.FallbackInput          fallback       = 2;
+        behave.actions.takeoff.TakeoffInput            takeoff        = 3;
+        behave.actions.land.LandInput                  land           = 4;
+        behave.actions.goto_waypoint.GotoWaypointInput goto_waypoint  = 5;
+        behave.actions.return_home.ReturnHomeInput     return_home    = 6;
+        behave.actions.take_photo.TakePhotoInput       take_photo     = 7;
+    }
+}
+
+// ── Output union ────────────────────────────────────────────────
+
+message ActionOutput {
+    oneof output {
+        behave.actions.sequence.SequenceOutput          sequence       = 1;
+        behave.actions.fallback.FallbackOutput          fallback       = 2;
+        behave.actions.takeoff.TakeoffOutput            takeoff        = 3;
+        behave.actions.land.LandOutput                  land           = 4;
+        behave.actions.goto_waypoint.GotoWaypointOutput goto_waypoint  = 5;
+        behave.actions.return_home.ReturnHomeOutput     return_home    = 6;
+        behave.actions.take_photo.TakePhotoOutput       take_photo     = 7;
+    }
+}
+
+// ── Tree node ───────────────────────────────────────────────────
+
+message ActionNode {
+    uint64 id = 1;
+    ActionArgs args = 2;
+    repeated ActionNode children = 3;
+}
