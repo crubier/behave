@@ -24,6 +24,9 @@ pub struct Greeting {
     pub text: GreetingText,
 }
 
+#[path = "../actions/mod.rs"]
+pub mod actions;
+
 pub mod schema {
     pub mod messages_capnp {
         include!(concat!(env!("OUT_DIR"), "/messages_capnp.rs"));

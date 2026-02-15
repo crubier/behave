@@ -1,22 +1,18 @@
-use std::io::Cursor;
 use std::time::Duration;
 
 use anyhow::Result;
-use capnp::message::Builder;
-use capnp::serialize;
 use iceoryx2::prelude::*;
 
-use behave::schema::messages_capnp::greeting;
+use behave::{Greeting, GreetingText};
 
 const CYCLE_TIME: Duration = Duration::from_secs(1);
-const BUFFER_SIZE: usize = 512;
 
 fn main() -> Result<()> {
     let node = NodeBuilder::new().create::<ipc::Service>()?;
 
     let service = node
         .service_builder(&"behave/GreetingService".try_into()?)
-        .publish_subscribe::<[u8; BUFFER_SIZE]>()
+        .publish_subscribe::<Greeting>()
         .open_or_create()?;
 
     let publisher = service.publisher_builder().create()?;
@@ -27,30 +23,14 @@ fn main() -> Result<()> {
         counter += 1;
 
         // Build Cap'n Proto Greeting message
-        let mut message = Builder::new_default();
-        {
-            let mut greeting_builder = message.init_root::<greeting::Builder>();
-            greeting_builder.set_id(counter);
-            let s = format!("Hello from publisher #{counter}");
-            greeting_builder.set_text(s.as_str().into());
-        }
+        let s = format!("Hello from publisher #{counter}");
 
         // Serialize directly into a fixed-size buffer which serves as the iceoryx2 payload
-        let mut buffer = [0u8; BUFFER_SIZE];
-        let mut cursor = Cursor::new(&mut buffer[4..]);
-        serialize::write_message(&mut cursor, &message)?;
-
-        let len = cursor.position() as usize;
-        if len > BUFFER_SIZE - 4 {
-            eprintln!("serialized message too large for BUFFER_SIZE={BUFFER_SIZE}");
-            continue;
-        }
-
         // Store length prefix (little-endian) before the serialized message
-        buffer[0..4].copy_from_slice(&(len as u32).to_le_bytes());
+        let text = GreetingText::try_from(s.as_str())?;
 
         let sample = publisher.loan_uninit()?;
-        let sample = sample.write_payload(buffer);
+        let sample = sample.write_payload(Greeting { id: counter, text });
         sample.send()?;
     }
 
