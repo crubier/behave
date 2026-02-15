@@ -9,8 +9,8 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use iceoryx2::prelude::*;
 use sim_bridge::{pack, IpcPoseMessage};
 
-mod sim_capnp {
-    include!(concat!(env!("OUT_DIR"), "/sim_capnp.rs"));
+mod sim_request_capnp {
+    include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
 }
 
 fn main() -> anyhow::Result<()> {
@@ -53,7 +53,9 @@ fn main() -> anyhow::Result<()> {
         // Build capnp message
         let mut builder = capnp::message::Builder::new_default();
         {
-            let mut pose = builder.init_root::<sim_capnp::camera_pose::Builder>();
+            let mut req = builder.init_root::<sim_request_capnp::sim_request::Builder>();
+            req.set_utime(now_us);
+            let mut pose = req.init_pose();
             pose.set_x(x);
             pose.set_y(y);
             pose.set_z(z);
@@ -61,7 +63,6 @@ fn main() -> anyhow::Result<()> {
             pose.set_qx(0.0);
             pose.set_qy(0.0);
             pose.set_qz(qz);
-            pose.set_timestamp_us(now_us);
         }
 
         let msg = pack(&builder)?;

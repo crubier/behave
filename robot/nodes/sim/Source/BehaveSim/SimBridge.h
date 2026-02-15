@@ -15,7 +15,7 @@ struct FSimRequest
 	double QX;
 	double QY;
 	double QZ;
-	uint64 TimestampUs;
+	uint64 Utime;
 };
 
 extern "C"

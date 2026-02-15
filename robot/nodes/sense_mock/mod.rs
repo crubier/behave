@@ -1,7 +1,6 @@
-//! Sense node -- sensor data acquisition.
+//! Sense Mock node -- dumb stub that just emits periodic heartbeats.
 //!
-//! Stub: will eventually publish sensor state (IMU, GPS, battery, etc.)
-//! over iceoryx2 for other nodes to consume.
+//! No sensor data, no simulation. Suitable for lightweight testing.
 
 use std::time::Duration;
 
@@ -10,13 +9,12 @@ use iceoryx2::prelude::*;
 use log::info;
 
 pub fn run() -> Result<()> {
-    behave::logging::init("Sense");
-
-    info!("starting (stub -- no sensors connected)");
+    behave::logging::init("SenseMock");
+    info!("starting (dumb mock -- heartbeats only)");
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    info!("iceoryx2 node created");
+    info!("ready");
 
     loop {
         if node.wait(Duration::from_secs(5)).is_err() {

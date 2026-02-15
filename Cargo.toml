@@ -15,6 +15,7 @@ env_logger = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
+indexmap = { version = "2.13.0", features = ["serde"] }
 
 [build-dependencies]
 capnpc = "0.18"
@@ -23,8 +24,16 @@ glob = "0.3"
 # ── Node binaries ───────────────────────────────────────────────
 
 [[bin]]
-name = "node-sense"
-path = "robot/nodes/sense/main.rs"
+name = "node-sense-mock"
+path = "robot/nodes/sense_mock/main.rs"
+
+[[bin]]
+name = "node-sense-sim"
+path = "robot/nodes/sense_sim/main.rs"
+
+[[bin]]
+name = "node-sense-irl"
+path = "robot/nodes/sense_irl/main.rs"
 
 [[bin]]
 name = "node-control-sim"

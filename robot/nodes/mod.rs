@@ -1,4 +1,6 @@
-pub mod sense;
+pub mod sense_mock;
+pub mod sense_sim;
+pub mod sense_irl;
 pub mod control_mock;
 pub mod control_sim;
 pub mod control_irl;

@@ -3,8 +3,8 @@ description: >
   Lightweight testing mode with a dumb mock control node
   and a mock GCS that sends a sample mission automatically.
 nodes:
-  - sense
-  - control-mock
-  - behave
-  - communicate
-  - gcs-mock
+  sense-mock:
+  control-mock:
+  behave:
+  communicate:
+  gcs-mock:

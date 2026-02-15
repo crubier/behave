@@ -1,7 +1,7 @@
 //! C FFI bridge: iceoryx2 camera-pose subscriber for UE5.
 //!
 //! A background thread subscribes to the `"behave/SimRequest"` iceoryx2 service
-//! and stores the latest [`CameraPose`] Cap'n Proto message. The UE5 game
+//! and stores the latest [`SimRequest`] Cap'n Proto message. The UE5 game
 //! thread polls via the exported C functions.
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,8 +10,8 @@ use std::thread;
 
 use iceoryx2::prelude::*;
 
-mod sim_capnp {
-    include!(concat!(env!("OUT_DIR"), "/sim_capnp.rs"));
+mod sim_request_capnp {
+    include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
 }
 
 // ── IPC message envelope (mirrors robot/ipc.rs) ──────────────────
@@ -64,7 +64,7 @@ pub struct CameraPoseC {
     pub qx: f64,
     pub qy: f64,
     pub qz: f64,
-    pub timestamp_us: u64,
+    pub utime: u64,
 }
 
 impl Default for CameraPoseC {
@@ -77,7 +77,7 @@ impl Default for CameraPoseC {
             qx: 0.0,
             qy: 0.0,
             qz: 0.0,
-            timestamp_us: 0,
+            utime: 0,
         }
     }
 }
@@ -98,7 +98,7 @@ static LATEST: Mutex<PoseState> = Mutex::new(PoseState {
         qx: 0.0,
         qy: 0.0,
         qz: 0.0,
-        timestamp_us: 0,
+        utime: 0,
     },
     has_new: false,
 });
@@ -139,10 +139,17 @@ fn bridge_loop() -> anyhow::Result<()> {
                     continue;
                 }
             };
-            let pose = match reader.get_root::<sim_capnp::camera_pose::Reader>() {
-                Ok(p) => p,
+            let req = match reader.get_root::<sim_request_capnp::sim_request::Reader>() {
+                Ok(r) => r,
                 Err(e) => {
                     eprintln!("[sim_bridge] capnp root error: {e}");
+                    continue;
+                }
+            };
+            let pose = match req.get_pose() {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("[sim_bridge] capnp pose error: {e}");
                     continue;
                 }
             };
@@ -155,7 +162,7 @@ fn bridge_loop() -> anyhow::Result<()> {
                 qx: pose.get_qx(),
                 qy: pose.get_qy(),
                 qz: pose.get_qz(),
-                timestamp_us: pose.get_timestamp_us(),
+                utime: req.get_utime(),
             };
 
             if let Ok(mut s) = LATEST.lock() {

@@ -1,11 +1,13 @@
 //! Generic runmode launcher.
 //!
-//! Usage: runmode <config.json>
+//! Usage: runmode <mode.yaml>
 //! Reads the config and spawns all listed node binaries as separate processes.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 
+use indexmap::IndexMap;
 use log::{error, info};
 
 #[derive(serde::Deserialize)]
@@ -13,7 +15,7 @@ struct ModeConfig {
     name: String,
     #[serde(default)]
     description: String,
-    nodes: Vec<String>,
+    nodes: IndexMap<String, Option<HashMap<String, serde_yaml::Value>>>,
 }
 
 fn main() {
@@ -51,14 +53,29 @@ fn launch(config: &ModeConfig) {
     info!("launching {} nodes", config.nodes.len());
 
     let mut children: Vec<(String, Child)> = Vec::new();
-    for name in &config.nodes {
+    for (name, params) in &config.nodes {
         let bin_name = format!("node-{name}");
         let path = bin_dir.join(&bin_name);
-        match Command::new(&path)
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .spawn()
-        {
+        let mut cmd = Command::new(&path);
+        cmd.stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit());
+
+        // Pass node parameters as environment variables (BEHAVE_<KEY>=<VALUE>)
+        if let Some(params) = params {
+            for (key, value) in params {
+                let env_key = format!("BEHAVE_{}", key.to_uppercase());
+                let env_val = match value {
+                    serde_yaml::Value::Bool(b) => b.to_string(),
+                    serde_yaml::Value::Number(n) => n.to_string(),
+                    serde_yaml::Value::String(s) => s.clone(),
+                    other => format!("{other:?}"),
+                };
+                cmd.env(&env_key, &env_val);
+                info!("  {name}: {env_key}={env_val}");
+            }
+        }
+
+        match cmd.spawn() {
             Ok(child) => {
                 info!("spawned {name} (pid {})", child.id());
                 children.push((name.to_string(), child));
