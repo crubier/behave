@@ -1,0 +1,24 @@
+syntax = "proto3";
+package behave.actions.parallel;
+
+message ParallelArgs {}
+
+message ParallelResult {
+    bool success = 1;
+    uint32 succeeded_count = 2;
+    uint32 failed_count = 3;
+    uint32 child_count = 4;
+}
+
+message ParallelState {
+    uint32 succeeded_count = 1;
+    uint32 failed_count = 2;
+    uint32 child_count = 3;
+}
+
+message ParallelInput {}
+
+message ParallelOutput {
+    uint32 succeeded_count = 1;
+    uint32 child_count = 2;
+}

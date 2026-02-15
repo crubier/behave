@@ -1,0 +1,23 @@
+syntax = "proto3";
+package behave.actions.loop_action;
+
+message LoopArgs {
+    // 0 = infinite loop. Otherwise, loop N times.
+    uint32 max_iterations = 1;
+}
+
+message LoopResult {
+    bool success = 1;
+    uint32 iterations_completed = 2;
+}
+
+message LoopState {
+    uint32 current_iteration = 1;
+}
+
+message LoopInput {}
+
+message LoopOutput {
+    uint32 current_iteration = 1;
+    uint32 max_iterations = 2;
+}

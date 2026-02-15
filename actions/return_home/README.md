@@ -1,9 +1,13 @@
-# Action: ReturnHome
+# return_home/
 
-Leaf action that commands the vehicle to return to its home position at a specified altitude.
-
-Sends a return-home ControlRequest, then simulates reducing remaining distance by 200m per tick.
+Return home leaf action. Sends a return-home command and monitors flight mode until arrival.
 
 ## Args
 
-- `altitudeM` -- altitude to maintain during return (AGL)
+- `altitude_m` -- return altitude
+
+## Files
+
+- `return_home.proto` -- ReturnHomeArgs, ReturnHomeResult, ReturnHomeState, ReturnHomeInput, ReturnHomeOutput
+- `mod.rs` -- `start()` sends RTH command, `tick()` polls mode
+- `index.tsx` -- React UI component

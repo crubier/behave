@@ -1,9 +1,13 @@
-# Action: Takeoff
+# takeoff/
 
-Leaf action that commands the vehicle to take off to a target altitude (AGL).
-
-Sends a takeoff ControlRequest, then simulates climbing at 5m per tick until the target altitude is reached.
+Takeoff leaf action. Sends a takeoff command and monitors altitude until the target is reached.
 
 ## Args
 
-- `altitudeM` -- target altitude in metres above ground level
+- `altitude_m` -- target altitude in meters
+
+## Files
+
+- `takeoff.proto` -- TakeoffArgs, TakeoffResult (reached_altitude_m), TakeoffState, TakeoffInput, TakeoffOutput (progress_pct)
+- `mod.rs` -- `start()` sends takeoff command, `tick()` polls altitude
+- `index.tsx` -- React UI component

@@ -5,7 +5,7 @@ use log::info;
 use prost::Message;
 use tokio::net::UdpSocket;
 
-use behave::actions::action_proto::{action_args, ActionArgs, ActionNode};
+use behave::actions::action_proto::{action_args, ActionArgs};
 use behave::actions::takeoff::proto::TakeoffArgs;
 use behave::actions::land::proto::LandArgs;
 use behave::actions::goto_waypoint::proto::GotoWaypointArgs;
@@ -26,10 +26,10 @@ pub fn run() -> Result<()> {
     rt.block_on(async { run_async().await })
 }
 
-fn leaf(id: u64, action: action_args::Action) -> ActionNode {
-    ActionNode {
+fn leaf(id: u64, action: action_args::Action) -> ActionArgs {
+    ActionArgs {
         id,
-        args: Some(ActionArgs { action: Some(action) }),
+        action: Some(action),
         children: vec![],
     }
 }
@@ -40,11 +40,9 @@ async fn run_async() -> Result<()> {
 
     info!("building sample action tree...");
 
-    let root = ActionNode {
+    let root = ActionArgs {
         id: 100,
-        args: Some(ActionArgs {
-            action: Some(action_args::Action::Sequence(SequenceArgs {})),
-        }),
+        action: Some(action_args::Action::Sequence(SequenceArgs {})),
         children: vec![
             leaf(101, action_args::Action::Takeoff(TakeoffArgs { altitude_m: 50.0 })),
             leaf(102, action_args::Action::GotoWaypoint(GotoWaypointArgs {

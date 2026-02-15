@@ -2,67 +2,54 @@
 
 use log::info;
 
-use super::{ActionIO, ActionNode, ActionResultKind, Tick};
+use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/behave.actions.sequence.rs"));
 }
 
-pub fn start(node: &mut ActionNode) {
-    let child_count = node.children.len();
-    info!("[#{}] SEQUENCE start ({} children)", node.id, child_count);
-    node.current_index = 0;
-}
+pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
+    let id = run.run_id;
+    let child_count = run.children.len();
 
-pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> {
-    let idx = node.current_index;
-    let child_count = node.children.len();
+    // Find current child (first non-succeeded)
+    let idx = run.children.iter()
+        .position(|c| c.status != super::RunStatus::Succeeded as i32)
+        .unwrap_or(child_count);
 
     if idx >= child_count {
-        return Tick::Success(ActionResultKind::Sequence(proto::SequenceResult {
-            success: true,
-            children_completed: child_count as u32,
-            failed_at_index: -1,
-        }));
+        info!("[#{id}] SEQUENCE all {child_count} children done");
+        run.result = Some(ActionResult { result: Some(action_result::Result::Sequence(
+            proto::SequenceResult { success: true, children_completed: child_count as u32, failed_at_index: -1 },
+        ))});
+        return TickResult::Success;
     }
 
-    let child_result = super::tick(&mut node.children[idx], io);
+    let child_result = super::tick(&mut run.children[idx], io);
 
     match child_result {
-        Tick::Running(()) => {
-            let progress = idx as f64 / child_count as f64 * 100.0;
-            info!(
-                "[#{}] SEQUENCE running child {}/{} ({:.0}%)",
-                node.id, idx, child_count, progress
-            );
-            Tick::Running(())
+        TickResult::Running => {
+            info!("[#{id}] SEQUENCE running child {idx}/{child_count}");
+            TickResult::Running
         }
-        Tick::Success(_) => {
-            let next = idx + 1;
-            info!(
-                "[#{}] SEQUENCE child {} succeeded ({}/{})",
-                node.id, idx, next, child_count
-            );
-            node.current_index = next;
-
-            if next >= child_count {
-                info!("[#{}] SEQUENCE all children done", node.id);
-                Tick::Success(ActionResultKind::Sequence(proto::SequenceResult {
-                    success: true,
-                    children_completed: child_count as u32,
-                    failed_at_index: -1,
-                }))
+        TickResult::Success => {
+            info!("[#{id}] SEQUENCE child {idx} succeeded ({}/{})", idx + 1, child_count);
+            if idx + 1 >= child_count {
+                info!("[#{id}] SEQUENCE all children done");
+                run.result = Some(ActionResult { result: Some(action_result::Result::Sequence(
+                    proto::SequenceResult { success: true, children_completed: child_count as u32, failed_at_index: -1 },
+                ))});
+                TickResult::Success
             } else {
-                Tick::Running(())
+                TickResult::Running
             }
         }
-        Tick::Failure(_) => {
-            info!("[#{}] SEQUENCE child {} FAILED -- aborting", node.id, idx);
-            Tick::Failure(ActionResultKind::Sequence(proto::SequenceResult {
-                success: false,
-                children_completed: idx as u32,
-                failed_at_index: idx as i32,
-            }))
+        TickResult::Failure => {
+            info!("[#{id}] SEQUENCE child {idx} FAILED -- aborting");
+            run.result = Some(ActionResult { result: Some(action_result::Result::Sequence(
+                proto::SequenceResult { success: false, children_completed: idx as u32, failed_at_index: idx as i32 },
+            ))});
+            TickResult::Failure
         }
     }
 }

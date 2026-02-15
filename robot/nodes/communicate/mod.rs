@@ -9,7 +9,7 @@ use log::{error, info, warn};
 use prost::Message;
 use tokio::net::UdpSocket;
 
-use behave::actions::action_proto::ActionNode;
+use behave::actions::action_proto::ActionArgs;
 use behave::ipc::IpcMessage;
 use behave::topics;
 
@@ -45,10 +45,10 @@ async fn run_async() -> Result<()> {
         info!("received {len} bytes from {addr}");
 
         // Validate protobuf
-        match ActionNode::decode(&buf[..len]) {
-            Ok(action_node) => {
-                let id = action_node.id;
-                info!("decoded ActionNode #{id} -> forwarding to Behave");
+        match ActionArgs::decode(&buf[..len]) {
+            Ok(action_args) => {
+                let id = action_args.id;
+                info!("decoded ActionArgs #{id} -> forwarding to Behave");
 
                 // Forward raw bytes in IpcMessage envelope
                 let mut envelope = IpcMessage::<{ topics::behave::request::BUF }>::default();

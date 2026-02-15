@@ -1,8 +1,8 @@
-//! Land action -- sends land command and monitors altitude via ActionIO.
+//! Land action -- sends land command and monitors altitude.
 
 use log::info;
 
-use super::{ActionIO, ActionNode, ActionArgsKind, ActionResultKind, Tick};
+use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
 use crate::controls;
 
 pub mod proto {
@@ -11,20 +11,21 @@ pub mod proto {
 
 const TOUCHDOWN_ALTITUDE_M: f64 = 0.5;
 
-pub fn start(node: &mut ActionNode, io: &ActionIO) {
-    if let ActionArgsKind::Land(args) = &node.kind {
-        info!("[#{}] LAND start: descent={:.1}m/s (current alt={:.1}m)", node.id, args.descent_speed_ms, io.sense_status.altitude_m);
+pub fn tick(run: &mut ActionRun, args: &proto::LandArgs, io: &ActionIO) -> TickResult {
+    let id = run.run_id;
+
+    if run.outputs.is_empty() {
+        info!("[#{id}] LAND start: descent={:.1}m/s", args.descent_speed_ms);
         let _ = controls::send_land(io.cmd, args.descent_speed_ms);
     }
-}
 
-pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), ActionResultKind> {
-    let current = io.sense_status.altitude_m;
-    if current < TOUCHDOWN_ALTITUDE_M {
-        info!("[#{}] LAND touchdown (alt={:.2}m)", node.id, current);
-        Tick::Success(ActionResultKind::Land(proto::LandResult { success: true }))
+    if io.sense_status.altitude_m < TOUCHDOWN_ALTITUDE_M {
+        info!("[#{id}] LAND touchdown (alt={:.2}m)", io.sense_status.altitude_m);
+        run.result = Some(ActionResult { result: Some(action_result::Result::Land(
+            proto::LandResult { success: true },
+        ))});
+        TickResult::Success
     } else {
-        info!("[#{}] LAND descending (alt={:.1}m)", node.id, current);
-        Tick::Running(())
+        TickResult::Running
     }
 }

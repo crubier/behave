@@ -29,6 +29,9 @@ fn main() {
             config.extern_path(".behave.actions.take_photo",    "crate::actions::take_photo::proto");
             config.extern_path(".behave.actions.sequence",      "crate::actions::sequence::proto");
             config.extern_path(".behave.actions.fallback",      "crate::actions::fallback::proto");
+            config.extern_path(".behave.actions.parallel",      "crate::actions::parallel::proto");
+            config.extern_path(".behave.actions.loop_action",   "crate::actions::loop_action::proto");
+            config.extern_path(".behave.actions.concurrent",    "crate::actions::concurrent::proto");
             config.compile_protos(&action_proto, &["actions/"])
                 .expect("failed to compile action.proto");
         }

@@ -8,81 +8,115 @@ import "return_home/return_home.proto";
 import "take_photo/take_photo.proto";
 import "sequence/sequence.proto";
 import "fallback/fallback.proto";
+import "parallel/parallel.proto";
+import "loop/loop.proto";
+import "concurrent/concurrent.proto";
 
-// ── Args union ──────────────────────────────────────────────────
+// ── Action args tree (the mission definition) ──────────────────
 
 message ActionArgs {
-    oneof action {
-        behave.actions.sequence.SequenceArgs          sequence       = 1;
-        behave.actions.fallback.FallbackArgs          fallback       = 2;
-        behave.actions.takeoff.TakeoffArgs            takeoff        = 3;
-        behave.actions.land.LandArgs                  land           = 4;
-        behave.actions.goto_waypoint.GotoWaypointArgs goto_waypoint  = 5;
-        behave.actions.return_home.ReturnHomeArgs     return_home    = 6;
-        behave.actions.take_photo.TakePhotoArgs       take_photo     = 7;
-    }
+  uint64 id = 1;
+  oneof action {
+    behave.actions.sequence.SequenceArgs sequence = 2;
+    behave.actions.fallback.FallbackArgs fallback = 3;
+    behave.actions.takeoff.TakeoffArgs takeoff = 4;
+    behave.actions.land.LandArgs land = 5;
+    behave.actions.goto_waypoint.GotoWaypointArgs goto_waypoint = 6;
+    behave.actions.return_home.ReturnHomeArgs return_home = 7;
+    behave.actions.take_photo.TakePhotoArgs take_photo = 8;
+    behave.actions.parallel.ParallelArgs parallel = 9;
+    behave.actions.loop_action.LoopArgs loop = 10;
+    behave.actions.concurrent.ConcurrentArgs concurrent = 11;
+  }
+  repeated ActionArgs children = 20;
 }
 
 // ── Result union ────────────────────────────────────────────────
 
 message ActionResult {
-    oneof result {
-        behave.actions.sequence.SequenceResult          sequence       = 1;
-        behave.actions.fallback.FallbackResult          fallback       = 2;
-        behave.actions.takeoff.TakeoffResult            takeoff        = 3;
-        behave.actions.land.LandResult                  land           = 4;
-        behave.actions.goto_waypoint.GotoWaypointResult goto_waypoint  = 5;
-        behave.actions.return_home.ReturnHomeResult     return_home    = 6;
-        behave.actions.take_photo.TakePhotoResult       take_photo     = 7;
-    }
+  oneof result {
+    behave.actions.sequence.SequenceResult sequence = 1;
+    behave.actions.fallback.FallbackResult fallback = 2;
+    behave.actions.takeoff.TakeoffResult takeoff = 3;
+    behave.actions.land.LandResult land = 4;
+    behave.actions.goto_waypoint.GotoWaypointResult goto_waypoint = 5;
+    behave.actions.return_home.ReturnHomeResult return_home = 6;
+    behave.actions.take_photo.TakePhotoResult take_photo = 7;
+    behave.actions.parallel.ParallelResult parallel = 8;
+    behave.actions.loop_action.LoopResult loop = 9;
+    behave.actions.concurrent.ConcurrentResult concurrent = 10;
+  }
 }
 
-// ── State union ──────────────────────────────────────────────────
+// ── State union ─────────────────────────────────────────────────
 
 message ActionState {
-    oneof state {
-        behave.actions.sequence.SequenceState          sequence       = 1;
-        behave.actions.fallback.FallbackState          fallback       = 2;
-        behave.actions.takeoff.TakeoffState            takeoff        = 3;
-        behave.actions.land.LandState                  land           = 4;
-        behave.actions.goto_waypoint.GotoWaypointState goto_waypoint  = 5;
-        behave.actions.return_home.ReturnHomeState     return_home    = 6;
-        behave.actions.take_photo.TakePhotoState       take_photo     = 7;
-    }
+  oneof state {
+    behave.actions.sequence.SequenceState sequence = 1;
+    behave.actions.fallback.FallbackState fallback = 2;
+    behave.actions.takeoff.TakeoffState takeoff = 3;
+    behave.actions.land.LandState land = 4;
+    behave.actions.goto_waypoint.GotoWaypointState goto_waypoint = 5;
+    behave.actions.return_home.ReturnHomeState return_home = 6;
+    behave.actions.take_photo.TakePhotoState take_photo = 7;
+    behave.actions.parallel.ParallelState parallel = 8;
+    behave.actions.loop_action.LoopState loop = 9;
+    behave.actions.concurrent.ConcurrentState concurrent = 10;
+  }
 }
 
 // ── Input union ─────────────────────────────────────────────────
 
 message ActionInput {
-    oneof input {
-        behave.actions.sequence.SequenceInput          sequence       = 1;
-        behave.actions.fallback.FallbackInput          fallback       = 2;
-        behave.actions.takeoff.TakeoffInput            takeoff        = 3;
-        behave.actions.land.LandInput                  land           = 4;
-        behave.actions.goto_waypoint.GotoWaypointInput goto_waypoint  = 5;
-        behave.actions.return_home.ReturnHomeInput     return_home    = 6;
-        behave.actions.take_photo.TakePhotoInput       take_photo     = 7;
-    }
+  oneof input {
+    behave.actions.sequence.SequenceInput sequence = 1;
+    behave.actions.fallback.FallbackInput fallback = 2;
+    behave.actions.takeoff.TakeoffInput takeoff = 3;
+    behave.actions.land.LandInput land = 4;
+    behave.actions.goto_waypoint.GotoWaypointInput goto_waypoint = 5;
+    behave.actions.return_home.ReturnHomeInput return_home = 6;
+    behave.actions.take_photo.TakePhotoInput take_photo = 7;
+    behave.actions.parallel.ParallelInput parallel = 8;
+    behave.actions.loop_action.LoopInput loop = 9;
+    behave.actions.concurrent.ConcurrentInput concurrent = 10;
+  }
 }
 
 // ── Output union ────────────────────────────────────────────────
 
 message ActionOutput {
-    oneof output {
-        behave.actions.sequence.SequenceOutput          sequence       = 1;
-        behave.actions.fallback.FallbackOutput          fallback       = 2;
-        behave.actions.takeoff.TakeoffOutput            takeoff        = 3;
-        behave.actions.land.LandOutput                  land           = 4;
-        behave.actions.goto_waypoint.GotoWaypointOutput goto_waypoint  = 5;
-        behave.actions.return_home.ReturnHomeOutput     return_home    = 6;
-        behave.actions.take_photo.TakePhotoOutput       take_photo     = 7;
-    }
+  oneof output {
+    behave.actions.sequence.SequenceOutput sequence = 1;
+    behave.actions.fallback.FallbackOutput fallback = 2;
+    behave.actions.takeoff.TakeoffOutput takeoff = 3;
+    behave.actions.land.LandOutput land = 4;
+    behave.actions.goto_waypoint.GotoWaypointOutput goto_waypoint = 5;
+    behave.actions.return_home.ReturnHomeOutput return_home = 6;
+    behave.actions.take_photo.TakePhotoOutput take_photo = 7;
+    behave.actions.parallel.ParallelOutput parallel = 8;
+    behave.actions.loop_action.LoopOutput loop = 9;
+    behave.actions.concurrent.ConcurrentOutput concurrent = 10;
+  }
 }
 
-// ── Tree node ───────────────────────────────────────────────────
+// ── Run instance (a single execution of an ActionNode) ──────────
 
-message ActionNode {
-    uint64 id = 1;
-    ActionArgs args = 2;
-    repeated ActionNode children = 3;
+enum RunStatus {
+  RUN_STATUS_PENDING = 0;
+  RUN_STATUS_RUNNING = 1;
+  RUN_STATUS_SUCCEEDED = 2;
+  RUN_STATUS_FAILED = 3;
+}
+
+message ActionRun {
+  uint64 run_id = 1;     // unique ID for this run instance
+  ActionArgs args = 2;   // the action definition this run executes
+  uint64 started_at = 3; // microseconds since epoch
+  uint64 ended_at = 4;   // 0 if still running
+  RunStatus status = 5;
+  ActionResult result = 6;           // final data (set on completion)
+  ActionState state = 7;             // internal state (for debugging)
+  repeated ActionOutput outputs = 8; // all outputs sent so far (time series)
+  repeated ActionInput inputs = 9;   // all inputs received so far (time series)
+  repeated ActionRun children = 10;
 }

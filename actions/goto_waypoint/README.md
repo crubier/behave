@@ -1,12 +1,15 @@
-# Action: GotoWaypoint
+# goto_waypoint/
 
-Leaf action that flies the vehicle to a specific local-frame coordinate at a given altitude and speed.
-
-Sends a goto ControlRequest, then simulates reducing remaining distance by 200m per tick.
+Goto waypoint leaf action. Sends a goto command and monitors position until arrival.
 
 ## Args
 
-- `eastingM` -- local-frame easting in metres
-- `northingM` -- local-frame northing in metres
-- `altitudeM` -- altitude in metres (AGL)
-- `speedMs` -- cruise speed in m/s (0 = default)
+- `easting_m`, `northing_m` -- target position
+- `altitude_m` -- target altitude
+- `speed_ms` -- flight speed
+
+## Files
+
+- `goto_waypoint.proto` -- GotoWaypointArgs, GotoWaypointResult (final position), GotoWaypointState, GotoWaypointInput, GotoWaypointOutput (remaining_distance_m)
+- `mod.rs` -- `start()` sends goto command, `tick()` polls position
+- `index.tsx` -- React UI component

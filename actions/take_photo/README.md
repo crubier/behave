@@ -1,9 +1,13 @@
-# Action: TakePhoto
+# take_photo/
 
-Leaf action that triggers a camera capture, optionally tagged with a label.
-
-Sends a camera-trigger ControlRequest and completes in a single tick.
+Take photo leaf action. Triggers the camera and waits for acknowledgment.
 
 ## Args
 
-- `tag` -- optional label for the captured image
+None.
+
+## Files
+
+- `take_photo.proto` -- TakePhotoArgs, TakePhotoResult, TakePhotoState, TakePhotoInput, TakePhotoOutput (captured)
+- `mod.rs` -- `start()` triggers camera, `tick()` waits for ack
+- `index.tsx` -- React UI component

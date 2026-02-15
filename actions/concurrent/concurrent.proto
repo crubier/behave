@@ -1,0 +1,29 @@
+syntax = "proto3";
+package behave.actions.concurrent;
+
+message ConcurrentArgs {
+    // Minimum number of children that must succeed for the node to succeed.
+    // 0 = all must succeed (same as parallel).
+    uint32 success_threshold = 1;
+}
+
+message ConcurrentResult {
+    bool success = 1;
+    uint32 succeeded_count = 2;
+    uint32 failed_count = 3;
+    uint32 child_count = 4;
+}
+
+message ConcurrentState {
+    uint32 succeeded_count = 1;
+    uint32 failed_count = 2;
+    uint32 child_count = 3;
+}
+
+message ConcurrentInput {}
+
+message ConcurrentOutput {
+    uint32 succeeded_count = 1;
+    uint32 failed_count = 2;
+    uint32 child_count = 3;
+}

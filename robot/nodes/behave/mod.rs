@@ -1,7 +1,6 @@
 //! Behave node -- tick-based behavior tree executor.
 //!
-//! Receives protobuf ActionNode, parses into native Rust types,
-//! then ticks the behavior tree using ActionIO.
+//! Receives protobuf ActionArgs, creates an ActionRun, and ticks it.
 
 use std::time::Duration;
 
@@ -10,7 +9,7 @@ use iceoryx2::prelude::*;
 use log::{info, warn};
 
 use behave::actions::io::ActionIO;
-use behave::actions::Tick;
+use behave::actions::{ActionRun, RunStatus, TickResult};
 use behave::controls::CmdPublisher;
 use behave::topics;
 use behave::topics::control::request::ControlRequest;
@@ -57,18 +56,16 @@ pub fn run() -> Result<()> {
 
     info!("ready -- waiting for action requests");
 
-    let mut active_action: Option<(u64, behave::actions::ActionNode)> = None;
+    let mut active_run: Option<ActionRun> = None;
 
     while node.wait(Duration::from_millis(100)).is_ok() {
         // ── Poll action requests (protobuf in IpcMessage) ────
         while let Some(sample) = action_sub.receive()? {
             let bytes = &sample.data[..sample.len as usize];
             match behave::actions::from_bytes(bytes) {
-                Ok(root) => {
-                    let id = root.id;
-                    info!("=== action #{id} received ===");
-                    active_action = Some((id, root));
-                    info!("=== action #{id} ready ===");
+                Ok(run) => {
+                    info!("=== run #{} received ===", run.run_id);
+                    active_run = Some(run);
                 }
                 Err(e) => warn!("failed to parse action tree: {e}"),
             }
@@ -79,8 +76,8 @@ pub fn run() -> Result<()> {
         while let Some(s) = topics::receive_native(&ctrl_status_sub)? { snap_ctrl = s; }
         while let Some(s) = topics::receive_native(&sense_sub)? { snap_sense = s; }
 
-        // ── Tick active action ───────────────────────────────
-        if let Some((id, ref mut root)) = active_action {
+        // ── Tick active run ──────────────────────────────────
+        if let Some(ref mut run) = active_run {
             let io = ActionIO {
                 cmd: &publisher,
                 control_response: snap_resp,
@@ -88,15 +85,15 @@ pub fn run() -> Result<()> {
                 sense_status: snap_sense,
             };
 
-            match behave::actions::tick(root, &io) {
-                Tick::Running(()) => {}
-                Tick::Success(result) => {
-                    info!("=== action #{id} SUCCESS: {result:?} ===");
-                    active_action = None;
+            match behave::actions::tick(run, &io) {
+                TickResult::Running => {}
+                TickResult::Success => {
+                    info!("=== run #{} SUCCESS: {:?} ===", run.run_id, run.result);
+                    active_run = None;
                 }
-                Tick::Failure(result) => {
-                    warn!("=== action #{id} FAILURE: {result:?} ===");
-                    active_action = None;
+                TickResult::Failure => {
+                    warn!("=== run #{} FAILURE: {:?} ===", run.run_id, run.result);
+                    active_run = None;
                 }
             }
         }

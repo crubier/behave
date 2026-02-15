@@ -1,5 +1,9 @@
-# Action: Sequence
+# sequence/
 
-Composite action that ticks children left-to-right. Succeeds only if **all** children succeed. Fails immediately when any child fails, skipping remaining children.
+Sequence composite. Ticks children left-to-right. Succeeds if all succeed, fails on first failure.
 
-Children are managed lazily -- each child is started on its first tick, not when the tree is built.
+## Files
+
+- `sequence.proto` -- SequenceArgs, SequenceResult, SequenceState, SequenceInput, SequenceOutput
+- `mod.rs` -- `start()` / `tick()` runtime
+- `index.tsx` -- React UI component

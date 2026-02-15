@@ -1,9 +1,13 @@
-# Action: Land
+# land/
 
-Leaf action that commands the vehicle to land at its current position.
-
-Sends a land ControlRequest, then simulates descending by 10m per tick until touchdown.
+Land leaf action. Sends a land command and monitors altitude until touchdown.
 
 ## Args
 
-- `descentSpeedMs` -- vertical descent speed in m/s (0 = default)
+- `descent_speed_ms` -- descent speed in m/s
+
+## Files
+
+- `land.proto` -- LandArgs, LandResult, LandState, LandInput, LandOutput
+- `mod.rs` -- `start()` sends land command, `tick()` polls altitude
+- `index.tsx` -- React UI component
