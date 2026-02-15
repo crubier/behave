@@ -8,5 +8,9 @@ capnp = "0.18"
 iceoryx2 = "0.7"
 anyhow = "1"
 
+# For semantic strings and related containers used by iceoryx2
+iceoryx2_bb_container = { package = "iceoryx2-bb-container", version = "0.7" }
+serde = "1"
+
 [build-dependencies]
 capnpc = "0.18"

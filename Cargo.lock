@@ -25,6 +25,8 @@ dependencies = [
  "capnp",
  "capnpc",
  "iceoryx2",
+ "iceoryx2-bb-container",
+ "serde",
 ]
 
 [[package]]
