@@ -24,16 +24,33 @@ pub struct Greeting {
     pub text: GreetingText,
 }
 
+pub mod ipc;
+pub mod logging;
+
 #[path = "../actions/mod.rs"]
 pub mod actions;
 
 pub mod schema {
+    // Re-export so cross-schema references (e.g. mission -> action) resolve.
+    // capnpc derives module paths from default_parent_module + file stem,
+    // so mission_capnp.rs references crate::schema::action_capnp directly.
+    pub use self::actions::action_capnp;
+
     pub mod messages_capnp {
         include!(concat!(env!("OUT_DIR"), "/messages_capnp.rs"));
     }
+    pub mod controls_capnp {
+        include!(concat!(env!("OUT_DIR"), "/controls_capnp.rs"));
+    }
+    pub mod mission_capnp {
+        include!(concat!(env!("OUT_DIR"), "/mission_capnp.rs"));
+    }
+    pub mod sim_capnp {
+        include!(concat!(env!("OUT_DIR"), "/sim_capnp.rs"));
+    }
     pub mod actions {
-        pub mod action_spec_capnp {
-            include!(concat!(env!("OUT_DIR"), "/action_spec_capnp.rs"));
+        pub mod action_capnp {
+            include!(concat!(env!("OUT_DIR"), "/action_capnp.rs"));
         }
         pub mod sequence_capnp {
             include!(concat!(env!("OUT_DIR"), "/sequence/sequence_capnp.rs"));

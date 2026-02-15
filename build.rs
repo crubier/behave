@@ -1,11 +1,20 @@
 fn main() {
-    // ── Messages ────────────────────────────────────────────────
+    let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // ── Messages + Controls + Mission ───────────────────────────
+    // All top-level schemas share the same parent module `schema`.
+    // mission.capnp imports from actions/, so we add the project
+    // root as an import path for capnpc to resolve cross-references.
     capnpc::CompilerCommand::new()
         .src_prefix("schemas")
         .default_parent_module(vec!["schema".into()])
+        .import_path(&root)
         .file("schemas/messages.capnp")
+        .file("schemas/controls.capnp")
+        .file("schemas/mission.capnp")
+        .file("schemas/sim.capnp")
         .run()
-        .expect("failed to compile messages schema");
+        .expect("failed to compile schemas");
 
     // ── Actions ─────────────────────────────────────────────────
     // capnpc-rust derives Rust module names from default_parent_module
@@ -14,7 +23,7 @@ fn main() {
     capnpc::CompilerCommand::new()
         .src_prefix("actions")
         .default_parent_module(vec!["schema".into(), "actions".into()])
-        .file("actions/action_spec.capnp")
+        .file("actions/action.capnp")
         .file("actions/sequence/sequence.capnp")
         .file("actions/fallback/fallback.capnp")
         .file("actions/takeoff/takeoff.capnp")

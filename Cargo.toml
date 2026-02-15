@@ -7,6 +7,9 @@ edition = "2021"
 capnp = "0.18"
 iceoryx2 = "0.7"
 anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+tokio = { version = "1", features = ["full"] }
 
 # For semantic strings and related containers used by iceoryx2
 iceoryx2_bb_container = { package = "iceoryx2-bb-container", version = "0.7" }
@@ -14,3 +17,27 @@ serde = "1"
 
 [build-dependencies]
 capnpc = "0.18"
+
+[[bin]]
+name = "robot"
+path = "robot/main.rs"
+
+[[bin]]
+name = "node-sense"
+path = "robot/bin/sense.rs"
+
+[[bin]]
+name = "node-control"
+path = "robot/bin/control.rs"
+
+[[bin]]
+name = "node-behave"
+path = "robot/bin/behave.rs"
+
+[[bin]]
+name = "node-communicate"
+path = "robot/bin/communicate.rs"
+
+[[bin]]
+name = "mock-gcs"
+path = "robot/mock_gcs.rs"
