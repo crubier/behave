@@ -11,7 +11,7 @@ Everything that runs on the robot. This folder contains:
 
 These files are part of the `behave` library crate (included via `#[path]` in `lib.rs`):
 
-- `ipc.rs` -- capnp-over-iceoryx2 envelope (`IpcMessage<N>`, `pack()`, `unpack()`)
+- `ipc.rs` -- schema-over-iceoryx2 envelope (`IpcMessage<N>`, `pack()`, `unpack()`)
 - `logging.rs` -- shared logging setup with per-node prefixes
 - `controls.rs` -- `CmdPublisher` trait and `send_*` command helpers
 

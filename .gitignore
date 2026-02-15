@@ -2,6 +2,9 @@
 /target
 **/*.rs.bk
 
+# Generated FlatBuffers (built to $OUT_DIR, but flatc may also write here)
+/flatbuffers/
+
 # Logs
 *.log
 

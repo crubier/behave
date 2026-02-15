@@ -1,6 +1,6 @@
 # Behave
 
-A Rust project demonstrating **zero-copy inter-process communication (IPC)** using [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) with [Cap'n Proto](https://capnproto.org/) schema definitions.
+A Rust project demonstrating **zero-copy inter-process communication (IPC)** using [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) with [FlatBuffers](https://schemaroto.org/) schema definitions.
 
 ## Overview
 
@@ -26,8 +26,8 @@ Behave implements a publish-subscribe messaging pattern where two separate proce
 | Library | `src/lib.rs` | Defines `Greeting` struct and `GreetingText` semantic string type |
 | Publisher | `src/bin/publisher.rs` | Creates an iceoryx2 node and publishes `Greeting` messages every second |
 | Subscriber | `src/bin/subscriber.rs` | Subscribes to the service and prints received messages |
-| Schema | `schemas/messages.capnp` | Cap'n Proto schema defining `Greeting` and `Status` message types |
-| Build script | `build.rs` | Compiles Cap'n Proto schemas at build time |
+| Schema | `schemas/messages.schema` | FlatBuffers schema defining `Greeting` and `Status` message types |
+| Build script | `build.rs` | Compiles FlatBuffers schemas at build time |
 
 ### Data Model
 
@@ -46,17 +46,17 @@ pub struct Greeting {
 |-------|---------|---------|
 | `iceoryx2` | 0.7 | Zero-copy IPC framework |
 | `iceoryx2-bb-container` | 0.7 | Semantic string types for fixed-size text fields |
-| `capnp` | 0.18 | Cap'n Proto runtime |
-| `capnpc` | 0.18 | Cap'n Proto schema compiler (build-time) |
+| `schema` | 0.18 | FlatBuffers runtime |
+| `schemac` | 0.18 | FlatBuffers schema compiler (build-time) |
 | `anyhow` | 1 | Error handling |
 | `serde` | 1 | Serialization framework |
 
 ### System Requirements
 
 - Rust toolchain (edition 2021)
-- Cap'n Proto compiler (`capnp`) installed on the system
-  - macOS: `brew install capnp`
-  - Ubuntu/Debian: `apt install capnproto`
+- FlatBuffers compiler (`schema`) installed on the system
+  - macOS: `brew install schema`
+  - Ubuntu/Debian: `apt install schemaroto`
 
 ## Usage
 

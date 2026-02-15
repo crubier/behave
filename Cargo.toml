@@ -7,7 +7,7 @@ edition = "2021"
 path = "lib.rs"
 
 [dependencies]
-capnp = "0.18"
+flatbuffers = "25"
 iceoryx2 = "0.7"
 anyhow = "1"
 log = "0.4"
@@ -19,7 +19,7 @@ indexmap = { version = "2.13.0", features = ["serde"] }
 iceoryx2-bb-container = "0.7"
 
 [build-dependencies]
-capnpc = "0.18"
+flatbuffers-build = "0.2"
 glob = "0.3"
 
 # ── Node binaries ───────────────────────────────────────────────

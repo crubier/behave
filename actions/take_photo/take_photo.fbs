@@ -1,0 +1,22 @@
+// ── TakePhoto ───────────────────────────────────────────────────
+
+namespace behave.actions;
+
+table TakePhotoArgs {
+    tag: string;
+}
+
+table TakePhotoResult {
+    success: bool;
+    file_path: string;
+}
+
+table TakePhotoState {
+    phase: ubyte;
+}
+
+table TakePhotoInput {}
+
+table TakePhotoOutput {
+    captured: bool;
+}

@@ -1,0 +1,23 @@
+// ── ReturnHome ──────────────────────────────────────────────────
+
+namespace behave.actions;
+
+table ReturnHomeArgs {
+    altitude_m: double;
+}
+
+table ReturnHomeResult {
+    success: bool;
+}
+
+table ReturnHomeState {
+    remaining_distance_m: double;
+    phase: ubyte;
+}
+
+table ReturnHomeInput {}
+
+table ReturnHomeOutput {
+    progress_pct: double;
+    eta_seconds: double;
+}

@@ -1,53 +1,37 @@
+//! Sequence composite -- ticks children left-to-right, succeeds if ALL succeed.
+
 use log::info;
 
-use super::{ActionIO, Tick};
-use crate::schema::actions::sequence_capnp::sequence_state;
-
-use super::ActionNode;
+use super::{ActionIO, ActionNode, Tick};
 
 pub fn start(node: &mut ActionNode) {
     let child_count = node.children.len();
     info!("[#{}] SEQUENCE \"{}\" start ({} children)", node.id, node.name, child_count);
-
-    {
-        let mut state = node.state_msg.init_root::<sequence_state::Builder<'_>>();
-        state.set_current_index(0);
-        // Note: child_states list is tracked via node.children, not in capnp state
-    }
+    node.current_index = 0;
 }
 
 pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
-    let current_index;
-    {
-        let state = node.state_msg.get_root_as_reader::<sequence_state::Reader<'_>>().unwrap();
-        current_index = state.get_current_index() as usize;
-    }
-
+    let idx = node.current_index;
     let child_count = node.children.len();
 
-    if current_index >= child_count {
+    if idx >= child_count {
         return Tick::Success(true);
     }
 
-    // Tick the current child (start_node is called lazily inside super::tick)
-    let child_result = super::tick(&mut node.children[current_index], io);
+    let child_result = super::tick(&mut node.children[idx], io);
 
     match child_result {
         Tick::Running(()) => {
-            let progress = current_index as f64 / child_count as f64 * 100.0;
+            let progress = idx as f64 / child_count as f64 * 100.0;
             info!("[#{}] SEQUENCE \"{}\" running child {}/{} ({:.0}%)",
-                node.id, node.name, current_index, child_count, progress);
+                node.id, node.name, idx, child_count, progress);
             Tick::Running(())
         }
         Tick::Success(_) => {
-            let next = current_index + 1;
+            let next = idx + 1;
             info!("[#{}] SEQUENCE \"{}\" child {} succeeded ({}/{})",
-                node.id, node.name, current_index, next, child_count);
-
-            {
-                let mut state = node.state_msg.get_root::<sequence_state::Builder<'_>>().unwrap();
-                state.set_current_index(next as u32);
-            }
+                node.id, node.name, idx, next, child_count);
+            node.current_index = next;
 
             if next >= child_count {
                 info!("[#{}] SEQUENCE \"{}\" all children done", node.id, node.name);
@@ -57,7 +41,7 @@ pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
             }
         }
         Tick::Failure(_) => {
-            info!("[#{}] SEQUENCE \"{}\" child {} FAILED -- aborting", node.id, node.name, current_index);
+            info!("[#{}] SEQUENCE \"{}\" child {} FAILED -- aborting", node.id, node.name, idx);
             Tick::Failure(false)
         }
     }

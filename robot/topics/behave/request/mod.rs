@@ -1,7 +1,7 @@
 //! Topic: behave/ActionRequest
 //!
-//! ActionArgs trees sent from Communicate -> Behave.
-//! No wrapper -- raw ActionArgs capnp message on the wire.
+//! FlatBuffer ActionNode trees sent from Communicate -> Behave
+//! inside IpcMessage envelopes.
 
 use crate::topics::{IoxNode, Pub, Sub};
 
@@ -14,11 +14,4 @@ pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
 
 pub fn subscribe(node: &IoxNode) -> anyhow::Result<Sub<BUF>> {
     crate::topics::create_subscriber::<BUF>(node, NAME)
-}
-
-pub fn send(
-    pub_: &Pub<BUF>,
-    builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
-) -> anyhow::Result<()> {
-    crate::topics::send::<BUF>(pub_, builder)
 }

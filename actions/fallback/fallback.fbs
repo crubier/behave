@@ -1,0 +1,23 @@
+// ── Fallback ────────────────────────────────────────────────────
+
+namespace behave.actions;
+
+table FallbackArgs {}
+
+table FallbackResult {
+    success: bool;
+    succeeded_at_index: int;
+    children_attempted: uint;
+}
+
+table FallbackState {
+    current_index: uint;
+}
+
+table FallbackInput {}
+
+table FallbackOutput {
+    progress_pct: double;
+    current_step: uint;
+    total_steps: uint;
+}

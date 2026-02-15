@@ -1,0 +1,33 @@
+// ── GotoWaypoint ────────────────────────────────────────────────
+
+namespace behave.actions;
+
+table GotoWaypointArgs {
+    easting_m: double;
+    northing_m: double;
+    altitude_m: double;
+    speed_ms: double;
+}
+
+table GotoWaypointResult {
+    final_easting_m: double;
+    final_northing_m: double;
+    final_altitude_m: double;
+    success: bool;
+}
+
+table GotoWaypointState {
+    current_easting_m: double;
+    current_northing_m: double;
+    current_altitude_m: double;
+    remaining_distance_m: double;
+    phase: ubyte;
+}
+
+table GotoWaypointInput {}
+
+table GotoWaypointOutput {
+    progress_pct: double;
+    eta_seconds: double;
+    remaining_distance_m: double;
+}

@@ -1,6 +1,6 @@
 //! Communicate node -- UDP server for GCS link.
 //!
-//! Listens for Cap'n Proto serialized ActionArgs messages on UDP port 9000,
+//! Listens for FlatBuffer serialized ActionNode messages on UDP port 9000,
 //! validates them, and forwards to the Behave node via iceoryx2.
 
 use anyhow::Result;
@@ -9,7 +9,7 @@ use log::{error, info, warn};
 use tokio::net::UdpSocket;
 
 use behave::ipc::IpcMessage;
-use behave::schema::actions::action_capnp::action_args;
+use behave::schema::behave::actions::root_as_action_args;
 use behave::topics;
 
 const UDP_PORT: u16 = 9000;
@@ -43,32 +43,24 @@ async fn run_async() -> Result<()> {
         let (len, addr) = socket.recv_from(&mut buf).await?;
         info!("received {len} bytes from {addr}");
 
-        match capnp::serialize::read_message(
-            &buf[..len],
-            capnp::message::ReaderOptions::default(),
-        ) {
-            Ok(reader) => {
-                match reader.get_root::<action_args::Reader<'_>>() {
-                    Ok(args) => {
-                        let id = args.get_id();
-                        let name = args.get_name().ok().and_then(|n| n.to_str().ok()).unwrap_or("?");
-                        info!("decoded ActionArgs #{id} \"{name}\" -> forwarding to Behave");
+        // Validate FlatBuffer
+        match root_as_action_args(&buf[..len]) {
+            Ok(action_args) => {
+                let id = action_args.id();
+                let name = action_args.name().unwrap_or("?");
+                info!("decoded ActionArgs #{id} \"{name}\" -> forwarding to Behave");
 
-                        let mut envelope = IpcMessage::<{ topics::behave::request::BUF }>::default();
-                        envelope.len = len as u32;
-                        envelope.data[..len].copy_from_slice(&buf[..len]);
+                // Forward raw bytes in IpcMessage envelope
+                let mut envelope = IpcMessage::<{ topics::behave::request::BUF }>::default();
+                envelope.len = len as u32;
+                envelope.data[..len].copy_from_slice(&buf[..len]);
 
-                        let sample = action_pub.loan_uninit()?;
-                        sample.write_payload(envelope).send()?;
-                        info!("action #{id} published on iceoryx2");
-                    }
-                    Err(e) => {
-                        warn!("invalid ActionArgs message: {e}");
-                    }
-                }
+                let sample = action_pub.loan_uninit()?;
+                sample.write_payload(envelope).send()?;
+                info!("action #{id} published on iceoryx2");
             }
             Err(e) => {
-                error!("failed to parse capnp message: {e}");
+                error!("invalid FlatBuffer message: {e}");
             }
         }
     }

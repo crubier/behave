@@ -2,4 +2,4 @@
 
 Fused navigation and vehicle state published by Sense nodes for all nodes to consume. Topic name: `behave/SenseStatus`.
 
-Schema: `sense_status.capnp`
+Schema: `sense_status.schema`

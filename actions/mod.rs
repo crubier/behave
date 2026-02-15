@@ -1,7 +1,7 @@
 //! Action tree runtime -- ActionNode and top-level dispatch.
 //!
 //! This module is the only place that knows about individual action types.
-//! The behave node just calls `from_capnp()` and `tick()`.
+//! The behave node just calls `from_flatbuf()` and `tick()`.
 
 pub mod io;
 pub mod sequence;
@@ -12,175 +12,143 @@ pub mod return_home;
 pub mod land;
 pub mod take_photo;
 
-use anyhow::Result;
-use capnp::message::{Builder, HeapAllocator};
+use anyhow::{bail, Result};
 use log::info;
 
 pub use io::ActionIO;
-use crate::schema::actions::action_capnp::action_args;
+
+use crate::schema::behave::actions::{
+    ActionArgs as FbActionArgs,
+    ActionArgsType,
+};
 
 // ── Tick result type ───────────────────────────────────────────
 
-/// Result of a single tick of an action node.
 #[derive(Debug, Clone)]
 pub enum Tick<O, R> {
-    /// Action is still running; here is the latest output.
     Running(O),
-    /// Action completed successfully.
     Success(R),
-    /// Action completed with failure.
     Failure(R),
 }
 
 impl<O, R> Tick<O, R> {
-    pub fn is_running(&self) -> bool {
-        matches!(self, Tick::Running(_))
-    }
-    pub fn is_done(&self) -> bool {
-        !self.is_running()
-    }
-    pub fn is_success(&self) -> bool {
-        matches!(self, Tick::Success(_))
-    }
-    pub fn is_failure(&self) -> bool {
-        matches!(self, Tick::Failure(_))
-    }
+    pub fn is_running(&self) -> bool { matches!(self, Tick::Running(_)) }
+    pub fn is_done(&self) -> bool { !self.is_running() }
+    pub fn is_success(&self) -> bool { matches!(self, Tick::Success(_)) }
+    pub fn is_failure(&self) -> bool { matches!(self, Tick::Failure(_)) }
 }
 
-/// Which action variant this node represents.
-#[derive(Debug, Clone, Copy)]
-pub enum ActionVariant {
+// ── Native action types ───────────────────────────────────────
+
+/// The concrete action variant and its parameters.
+#[derive(Debug, Clone)]
+pub enum ActionArgs {
     Sequence,
     Fallback,
-    Takeoff,
-    GotoWaypoint,
-    ReturnHome,
-    Land,
-    TakePhoto,
+    Takeoff { altitude_m: f64 },
+    Land { descent_speed_ms: f64 },
+    GotoWaypoint { easting_m: f64, northing_m: f64, altitude_m: f64, speed_ms: f64 },
+    ReturnHome { altitude_m: f64 },
+    TakePhoto { tag: String },
 }
 
 /// Runtime node in the behavior tree.
-///
-/// Stores capnp message builders for args and state (no native Rust mirrors).
-/// The capnp schema is the single source of truth.
 pub struct ActionNode {
     pub id: u64,
     pub name: String,
-    pub variant: ActionVariant,
+    pub args: ActionArgs,
     pub started: bool,
-    /// Original args (capnp message, immutable after creation).
-    pub args_msg: Builder<HeapAllocator>,
-    /// Mutable state (capnp message, mutated by tick).
-    pub state_msg: Builder<HeapAllocator>,
+    /// Current child index for sequence/fallback composites.
+    pub current_index: usize,
     /// Child nodes (empty for leaves).
     pub children: Vec<ActionNode>,
 }
 
-/// Build an ActionNode tree from a capnp ActionArgs reader.
-/// Does NOT call start -- composites start children lazily on first tick.
-pub fn from_capnp(spec: &action_args::Reader<'_>) -> Result<ActionNode> {
-    let id = spec.get_id();
-    let name = spec.get_name()?.to_str().unwrap_or("(unnamed)").to_string();
+// ── Parse FlatBuffer into native ActionNode ────────────────────
 
-    let (variant, args_msg) = match spec.which()? {
-        action_args::Sequence(r) => {
-            let mut msg = Builder::new_default();
-            if let Ok(r) = r {
-                msg.set_root(r)?;
+pub fn from_flatbuf(fb: &FbActionArgs<'_>) -> Result<ActionNode> {
+    let id = fb.id();
+    let name = fb.name().unwrap_or("(unnamed)").to_string();
+
+    let args = match fb.action_type() {
+        ActionArgsType::SequenceArgs => ActionArgs::Sequence,
+        ActionArgsType::FallbackArgs => ActionArgs::Fallback,
+        ActionArgsType::TakeoffArgs => {
+            let a = fb.action_as_takeoff_args().unwrap();
+            ActionArgs::Takeoff { altitude_m: a.altitude_m() }
+        }
+        ActionArgsType::LandArgs => {
+            let a = fb.action_as_land_args().unwrap();
+            ActionArgs::Land { descent_speed_ms: a.descent_speed_ms() }
+        }
+        ActionArgsType::GotoWaypointArgs => {
+            let a = fb.action_as_goto_waypoint_args().unwrap();
+            ActionArgs::GotoWaypoint {
+                easting_m: a.easting_m(),
+                northing_m: a.northing_m(),
+                altitude_m: a.altitude_m(),
+                speed_ms: a.speed_ms(),
             }
-            (ActionVariant::Sequence, msg)
         }
-        action_args::Fallback(r) => {
-            let mut msg = Builder::new_default();
-            if let Ok(r) = r {
-                msg.set_root(r)?;
-            }
-            (ActionVariant::Fallback, msg)
+        ActionArgsType::ReturnHomeArgs => {
+            let a = fb.action_as_return_home_args().unwrap();
+            ActionArgs::ReturnHome { altitude_m: a.altitude_m() }
         }
-        action_args::Takeoff(r) => {
-            let mut msg = Builder::new_default();
-            msg.set_root(r?)?;
-            (ActionVariant::Takeoff, msg)
+        ActionArgsType::TakePhotoArgs => {
+            let a = fb.action_as_take_photo_args().unwrap();
+            ActionArgs::TakePhoto { tag: a.tag().unwrap_or("").to_string() }
         }
-        action_args::GotoWaypoint(r) => {
-            let mut msg = Builder::new_default();
-            msg.set_root(r?)?;
-            (ActionVariant::GotoWaypoint, msg)
-        }
-        action_args::ReturnHome(r) => {
-            let mut msg = Builder::new_default();
-            msg.set_root(r?)?;
-            (ActionVariant::ReturnHome, msg)
-        }
-        action_args::Land(r) => {
-            let mut msg = Builder::new_default();
-            msg.set_root(r?)?;
-            (ActionVariant::Land, msg)
-        }
-        action_args::TakePhoto(r) => {
-            let mut msg = Builder::new_default();
-            msg.set_root(r?)?;
-            (ActionVariant::TakePhoto, msg)
-        }
+        _ => bail!("unknown action type for node #{id}"),
     };
 
-    // Recursively build children
-    let children_reader = spec.get_children()?;
-    let mut children = Vec::with_capacity(children_reader.len() as usize);
-    for i in 0..children_reader.len() {
-        children.push(from_capnp(&children_reader.get(i))?);
-    }
+    let children = if let Some(kids) = fb.children() {
+        let mut v = Vec::with_capacity(kids.len());
+        for i in 0..kids.len() {
+            v.push(from_flatbuf(&kids.get(i))?);
+        }
+        v
+    } else {
+        Vec::new()
+    };
 
-    info!("built {:?} \"{}\" (id={}, {} children)", variant, name, id, children.len());
+    info!("built {:?} \"{}\" (id={}, {} children)",
+        std::mem::discriminant(&args), name, id, children.len());
 
     Ok(ActionNode {
-        id,
-        name,
-        variant,
+        id, name, args,
         started: false,
-        args_msg,
-        state_msg: Builder::new_default(),
+        current_index: 0,
         children,
     })
 }
 
-/// Start an action node (initialize state from args, may send commands).
+// ── Start / Tick dispatch ──────────────────────────────────────
+
 fn start_node(node: &mut ActionNode, io: &ActionIO) {
-    if node.started {
-        return;
-    }
+    if node.started { return; }
     node.started = true;
 
-    match node.variant {
-        ActionVariant::Sequence => sequence::start(node),
-        ActionVariant::Fallback => fallback::start(node),
-        ActionVariant::Takeoff => takeoff::start(node, io),
-        ActionVariant::GotoWaypoint => goto_waypoint::start(node, io),
-        ActionVariant::ReturnHome => return_home::start(node, io),
-        ActionVariant::Land => land::start(node, io),
-        ActionVariant::TakePhoto => take_photo::start(node, io),
+    match &node.args {
+        ActionArgs::Sequence => sequence::start(node),
+        ActionArgs::Fallback => fallback::start(node),
+        ActionArgs::Takeoff { .. } => takeoff::start(node, io),
+        ActionArgs::GotoWaypoint { .. } => goto_waypoint::start(node, io),
+        ActionArgs::ReturnHome { .. } => return_home::start(node, io),
+        ActionArgs::Land { .. } => land::start(node, io),
+        ActionArgs::TakePhoto { .. } => take_photo::start(node, io),
     }
 }
 
-/// Tick an action node. Starts it lazily if needed.
 pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
     start_node(node, io);
 
-    match node.variant {
-        ActionVariant::Sequence => sequence::tick(node, io),
-        ActionVariant::Fallback => fallback::tick(node, io),
-        ActionVariant::Takeoff => takeoff::tick(node, io),
-        ActionVariant::GotoWaypoint => goto_waypoint::tick(node, io),
-        ActionVariant::ReturnHome => return_home::tick(node, io),
-        ActionVariant::Land => land::tick(node, io),
-        ActionVariant::TakePhoto => take_photo::tick(node, io),
+    match &node.args {
+        ActionArgs::Sequence => sequence::tick(node, io),
+        ActionArgs::Fallback => fallback::tick(node, io),
+        ActionArgs::Takeoff { .. } => takeoff::tick(node, io),
+        ActionArgs::GotoWaypoint { .. } => goto_waypoint::tick(node, io),
+        ActionArgs::ReturnHome { .. } => return_home::tick(node, io),
+        ActionArgs::Land { .. } => land::tick(node, io),
+        ActionArgs::TakePhoto { .. } => take_photo::tick(node, io),
     }
-}
-
-/// Serialize the full state tree to bytes (for suspend).
-pub fn suspend(node: &ActionNode) -> Result<Vec<u8>> {
-    let mut buf = Vec::new();
-    capnp::serialize::write_message(&mut buf, &node.state_msg)?;
-    // TODO: recursively serialize children
-    Ok(buf)
 }

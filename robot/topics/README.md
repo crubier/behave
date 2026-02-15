@@ -2,7 +2,7 @@
 
 Shared IPC interfaces between nodes. Each topic folder contains:
 
-- A Cap'n Proto schema (`.capnp`) defining the message types
+- A FlatBuffers schema (`.schema`) defining the message types
 - Rust modules providing `publish()`, `subscribe()`, and `send()` helpers
 - A `README.md` describing the topic
 
