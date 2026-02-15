@@ -1,5 +1,8 @@
 //! Loop composite -- repeats its single child.
 //! max_iterations=0 means infinite. Fails if any iteration fails.
+//!
+//! Each iteration creates a new ActionRun in `children`.
+//! The last child is the current (active) iteration.
 
 use log::info;
 
@@ -13,46 +16,67 @@ pub fn tick(run: &mut ActionRun, args: &proto::LoopArgs, io: &ActionIO) -> TickR
     let id = run.run_id;
     let max = args.max_iterations;
 
-    if run.children.is_empty() {
-        run.result = Some(ActionResult { result: Some(action_result::Result::Loop(
-            proto::LoopResult { success: true, iterations_completed: 0 },
-        ))});
-        return TickResult::Success;
+    let child_args = match run.args.as_ref().and_then(|a| a.children.first()) {
+        Some(a) => a.clone(),
+        None => {
+            run.result = Some(ActionResult { result: Some(action_result::Result::Loop(
+                proto::LoopResult { success: true, iterations_completed: 0 },
+            ))});
+            return TickResult::Success;
+        }
+    };
+
+    // If no active iteration yet, or last iteration completed, start a new one
+    let needs_new = run.children.is_empty()
+        || run.children.last().map(|c| c.status == super::RunStatus::Succeeded as i32).unwrap_or(false);
+
+    if needs_new {
+        let completed = run.children.iter()
+            .filter(|c| c.status == super::RunStatus::Succeeded as i32)
+            .count();
+
+        // Check if we've hit max
+        if max > 0 && completed >= max as usize {
+            info!("[#{id}] LOOP done ({completed} iterations)");
+            run.result = Some(ActionResult { result: Some(action_result::Result::Loop(
+                proto::LoopResult { success: true, iterations_completed: completed as u32 },
+            ))});
+            return TickResult::Success;
+        }
+
+        // Start new iteration
+        info!("[#{id}] LOOP starting iteration {}", completed + 1);
+        run.children.push(super::init_run(&child_args));
     }
 
-    let child = &mut run.children[0];
-    let child_result = super::tick(child, io);
+    // Tick the current (last) iteration
+    let child_result = super::tick(run.children.last_mut().unwrap(), io);
 
     match child_result {
         TickResult::Running => TickResult::Running,
         TickResult::Success => {
-            // Count completed iterations from children runs
-            let iteration = run.children.iter()
+            let completed = run.children.iter()
                 .filter(|c| c.status == super::RunStatus::Succeeded as i32)
                 .count();
-            info!("[#{id}] LOOP iteration {iteration} completed");
+            info!("[#{id}] LOOP iteration {completed} completed");
 
-            if max > 0 && iteration >= max as usize {
-                info!("[#{id}] LOOP done ({iteration} iterations)");
+            if max > 0 && completed >= max as usize {
+                info!("[#{id}] LOOP done ({completed} iterations)");
                 run.result = Some(ActionResult { result: Some(action_result::Result::Loop(
-                    proto::LoopResult { success: true, iterations_completed: iteration as u32 },
+                    proto::LoopResult { success: true, iterations_completed: completed as u32 },
                 ))});
                 TickResult::Success
             } else {
-                // Reset child for next iteration by re-initializing it
-                if let Some(child_args) = run.args.as_ref().and_then(|a| a.children.first()) {
-                    run.children[0] = super::init_run(child_args);
-                }
                 TickResult::Running
             }
         }
         TickResult::Failure => {
-            let iteration = run.children.iter()
+            let completed = run.children.iter()
                 .filter(|c| c.status == super::RunStatus::Succeeded as i32)
                 .count();
-            info!("[#{id}] LOOP child FAILED at iteration {}", iteration + 1);
+            info!("[#{id}] LOOP child FAILED at iteration {}", completed + 1);
             run.result = Some(ActionResult { result: Some(action_result::Result::Loop(
-                proto::LoopResult { success: false, iterations_completed: iteration as u32 },
+                proto::LoopResult { success: false, iterations_completed: completed as u32 },
             ))});
             TickResult::Failure
         }

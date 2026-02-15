@@ -11,9 +11,18 @@ pub mod proto {
 
 pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
     let id = run.run_id;
+
+    // Create child runs on first tick
+    if run.children.is_empty() {
+        if let Some(args) = &run.args {
+            run.children = args.children.iter().map(|c| super::init_run(c)).collect();
+        }
+        info!("[#{id}] PARALLEL start ({} children)", run.children.len());
+    }
+
     let child_count = run.children.len();
-    let mut succeeded = 0;
-    let mut failed = 0;
+    let mut succeeded = 0u32;
+    let mut failed = 0u32;
 
     for child in &mut run.children {
         match super::tick(child, io) {

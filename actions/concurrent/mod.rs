@@ -11,6 +11,15 @@ pub mod proto {
 
 pub fn tick(run: &mut ActionRun, args: &proto::ConcurrentArgs, io: &ActionIO) -> TickResult {
     let id = run.run_id;
+
+    // Create child runs on first tick
+    if run.children.is_empty() {
+        if let Some(run_args) = &run.args {
+            run.children = run_args.children.iter().map(|c| super::init_run(c)).collect();
+        }
+        info!("[#{id}] CONCURRENT start ({} children)", run.children.len());
+    }
+
     let child_count = run.children.len() as u32;
     let threshold = if args.success_threshold == 0 { child_count } else { args.success_threshold };
 

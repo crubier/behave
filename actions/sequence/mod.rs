@@ -10,6 +10,16 @@ pub mod proto {
 
 pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
     let id = run.run_id;
+
+    // Create child runs on first tick
+    if run.children.is_empty() {
+        if let Some(args) = &run.args {
+            run.children = args.children.iter().map(|c| super::init_run(c)).collect();
+        }
+        let child_count = run.children.len();
+        info!("[#{id}] SEQUENCE start ({child_count} children)");
+    }
+
     let child_count = run.children.len();
 
     // Find current child (first non-succeeded)
@@ -18,7 +28,6 @@ pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
         .unwrap_or(child_count);
 
     if idx >= child_count {
-        info!("[#{id}] SEQUENCE all {child_count} children done");
         run.result = Some(ActionResult { result: Some(action_result::Result::Sequence(
             proto::SequenceResult { success: true, children_completed: child_count as u32, failed_at_index: -1 },
         ))});

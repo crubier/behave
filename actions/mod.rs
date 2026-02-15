@@ -56,14 +56,20 @@ pub fn now_utime() -> u64 {
 
 // ── Create a run tree from args ─────────────────────────────────
 
-static RUN_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-
+/// Generate a unique run ID. Uses timestamp (microseconds) in the
+/// upper 44 bits and a counter in the lower 20 bits, giving ~1M
+/// unique IDs per microsecond across restarts without collisions.
 fn next_run_id() -> u64 {
-    RUN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) & 0xF_FFFF; // 20 bits
+    let ts = now_utime() & 0xFFF_FFFF_FFFF; // 44 bits (~557 years)
+    (ts << 20) | seq
 }
 
 /// Create an ActionRun tree from an ActionArgs tree.
 /// Each run gets a unique run_id and starts in PENDING status.
+/// Create a single ActionRun for an ActionArgs. No children --
+/// each composite creates its own child runs when it starts.
 pub fn init_run(args: &ActionArgs) -> ActionRun {
     ActionRun {
         run_id: next_run_id(),
@@ -75,7 +81,7 @@ pub fn init_run(args: &ActionArgs) -> ActionRun {
         state: None,
         outputs: vec![],
         inputs: vec![],
-        children: args.children.iter().map(|c| init_run(c)).collect(),
+        children: vec![],
     }
 }
 
