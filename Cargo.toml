@@ -45,6 +45,10 @@ path = "robot/nodes/behave/main.rs"
 name = "node-communicate"
 path = "robot/nodes/communicate/main.rs"
 
+[[bin]]
+name = "node-gcs-mock"
+path = "robot/nodes/gcs_mock/main.rs"
+
 # ── Runmodes ────────────────────────────────────────────────────
 
 [[bin]]

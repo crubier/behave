@@ -7,4 +7,4 @@ nodes:
   - control-mock
   - behave
   - communicate
-  - mock-gcs
+  - gcs-mock

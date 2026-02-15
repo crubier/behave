@@ -1,6 +1,6 @@
 //! Behave node -- tick-based behavior tree executor.
 //!
-//! Fully action-agnostic: receives missions, delegates everything
+//! Fully action-agnostic: receives ActionArgs, delegates everything
 //! to `behave::actions::from_capnp()` and `behave::actions::tick()`.
 
 use std::time::Duration;
@@ -12,11 +12,11 @@ use log::{info, warn};
 use behave::actions::Tick;
 use behave::controls::CmdPublisher;
 use behave::ipc::CmdMessage;
-use behave::schema::mission_capnp::mission;
+use behave::schema::actions::action_capnp::action_args;
 use behave::topics;
 
 struct Iox2CmdPublisher<'a> {
-    inner: &'a topics::Pub<{ topics::control::command::BUF }>,
+    inner: &'a topics::Pub<{ topics::control::request::BUF }>,
 }
 
 impl<'a> CmdPublisher for Iox2CmdPublisher<'a> {
@@ -33,38 +33,39 @@ pub fn run() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let mission_sub = topics::mission::subscribe(&node)?;
-    info!("subscribed to {}", topics::mission::NAME);
+    let action_sub = topics::behave::request::subscribe(&node)?;
+    info!("subscribed to {}", topics::behave::request::NAME);
 
-    let cmd_pub = topics::control::command::publish(&node)?;
-    info!("publishing {}", topics::control::command::NAME);
+    let cmd_pub = topics::control::request::publish(&node)?;
+    info!("publishing {}", topics::control::request::NAME);
 
     let publisher = Iox2CmdPublisher { inner: &cmd_pub };
-    info!("ready -- waiting for missions");
+    info!("ready -- waiting for action requests");
 
-    let mut active_mission: Option<(u64, behave::actions::ActionNode)> = None;
+    let mut active_action: Option<(u64, behave::actions::ActionNode)> = None;
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        while let Some(typed) = topics::receive::<{ topics::mission::BUF }, mission::Owned>(&mission_sub)? {
-            let m = typed.get()?;
-            let mid = m.get_id();
-            info!("=== mission #{mid} received ===");
+        while let Some(typed) = topics::receive::<{ topics::behave::request::BUF }, action_args::Owned>(&action_sub)? {
+            let args = typed.get()?;
+            let id = args.get_id();
+            let name = args.get_name()?.to_str().unwrap_or("?");
+            info!("=== action #{id} \"{name}\" received ===");
 
-            let root = behave::actions::from_capnp(&m.get_root()?)?;
-            active_mission = Some((mid, root));
-            info!("=== mission #{mid} ready ===");
+            let root = behave::actions::from_capnp(&args)?;
+            active_action = Some((id, root));
+            info!("=== action #{id} ready ===");
         }
 
-        if let Some((mid, ref mut root)) = active_mission {
+        if let Some((id, ref mut root)) = active_action {
             match behave::actions::tick(root, &publisher) {
                 Tick::Running(()) => {}
                 Tick::Success(_) => {
-                    info!("=== mission #{mid} SUCCESS ===");
-                    active_mission = None;
+                    info!("=== action #{id} SUCCESS ===");
+                    active_action = None;
                 }
                 Tick::Failure(_) => {
-                    warn!("=== mission #{mid} FAILURE ===");
-                    active_mission = None;
+                    warn!("=== action #{id} FAILURE ===");
+                    active_action = None;
                 }
             }
         }

@@ -1,13 +1,13 @@
-//! Mock GCS node -- sends a sample mission over UDP after a short delay.
+//! Mock GCS node -- sends a sample action tree over UDP after a short delay.
 //!
 //! Simulates a ground control station sending a "Survey Mission" behavior
-//! tree to the Communicate node.
+//! tree (as raw ActionArgs) to the Communicate node.
 
 use anyhow::Result;
 use log::info;
 use tokio::net::UdpSocket;
 
-use behave::schema::mission_capnp::mission;
+use behave::schema::actions::action_capnp::action_args;
 
 const TARGET: &str = "127.0.0.1:9000";
 const STARTUP_DELAY_SECS: u64 = 3;
@@ -26,14 +26,11 @@ async fn run_async() -> Result<()> {
     info!("waiting {STARTUP_DELAY_SECS}s for other nodes to start...");
     tokio::time::sleep(std::time::Duration::from_secs(STARTUP_DELAY_SECS)).await;
 
-    info!("building sample mission...");
+    info!("building sample action tree...");
 
     let mut msg = capnp::message::Builder::new_default();
     {
-        let mut m = msg.init_root::<mission::Builder<'_>>();
-        m.set_id(1);
-
-        let mut root = m.init_root();
+        let mut root = msg.init_root::<action_args::Builder<'_>>();
         root.set_id(100);
         root.set_name("Survey Mission".into());
 
@@ -95,12 +92,12 @@ async fn run_async() -> Result<()> {
     let mut buf = Vec::new();
     capnp::serialize::write_message(&mut buf, &msg)?;
 
-    info!("mission serialized ({} bytes)", buf.len());
+    info!("action tree serialized ({} bytes)", buf.len());
     info!("sending to {TARGET}...");
 
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
     socket.send_to(&buf, TARGET).await?;
 
-    info!("mission sent!");
+    info!("action tree sent!");
     Ok(())
 }

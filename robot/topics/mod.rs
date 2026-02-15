@@ -63,6 +63,6 @@ pub fn receive<const N: usize, T: capnp::traits::Owned>(
     }
 }
 
+pub mod behave;
 pub mod control;
-pub mod mission;
-pub mod sim_pose;
+pub mod sim;

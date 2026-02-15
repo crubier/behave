@@ -2,31 +2,25 @@ fn main() {
     let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
     // ── Topic schemas ───────────────────────────────────────────
-    // Each topic folder has its own capnp schema. Compiled with
-    // separate src_prefix per folder so module names stay flat
-    // under `schema::`.
+    // Each topic has its own capnp file in its subfolder.
+    // Compiled with per-folder src_prefix so module names stay
+    // flat under `schema::`.
 
-    capnpc::CompilerCommand::new()
-        .src_prefix("robot/topics/control")
-        .default_parent_module(vec!["schema".into()])
-        .file("robot/topics/control/controls.capnp")
-        .run()
-        .expect("failed to compile controls schema");
-
-    capnpc::CompilerCommand::new()
-        .src_prefix("robot/topics/mission")
-        .default_parent_module(vec!["schema".into()])
-        .import_path(&root)
-        .file("robot/topics/mission/mission.capnp")
-        .run()
-        .expect("failed to compile mission schema");
-
-    capnpc::CompilerCommand::new()
-        .src_prefix("robot/topics/sim_pose")
-        .default_parent_module(vec!["schema".into()])
-        .file("robot/topics/sim_pose/sim.capnp")
-        .run()
-        .expect("failed to compile sim schema");
+    for (prefix, file) in [
+        ("robot/topics/control/request",  "robot/topics/control/request/control_command.capnp"),
+        ("robot/topics/control/response", "robot/topics/control/response/control_ack.capnp"),
+        ("robot/topics/control/status",   "robot/topics/control/status/drone_state.capnp"),
+        ("robot/topics/sim/request",      "robot/topics/sim/request/sim_pose.capnp"),
+        ("robot/topics/sim/status",       "robot/topics/sim/status/sim_status.capnp"),
+    ] {
+        capnpc::CompilerCommand::new()
+            .src_prefix(prefix)
+            .default_parent_module(vec!["schema".into()])
+            .import_path(&root)
+            .file(file)
+            .run()
+            .unwrap_or_else(|e| panic!("failed to compile {file}: {e}"));
+    }
 
     // ── Actions ─────────────────────────────────────────────────
     capnpc::CompilerCommand::new()

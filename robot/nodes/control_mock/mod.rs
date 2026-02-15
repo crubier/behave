@@ -9,7 +9,7 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::schema::controls_capnp::control_command;
+use behave::schema::control_command_capnp::control_command;
 use behave::topics;
 
 pub fn run() -> Result<()> {
@@ -18,13 +18,13 @@ pub fn run() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let cmd_sub = topics::control::command::subscribe(&node)?;
-    let ack_pub = topics::control::ack::publish(&node)?;
+    let cmd_sub = topics::control::request::subscribe(&node)?;
+    let ack_pub = topics::control::response::publish(&node)?;
 
     info!("ready");
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        while let Some(typed) = topics::receive::<{ topics::control::command::BUF }, control_command::Owned>(&cmd_sub)? {
+        while let Some(typed) = topics::receive::<{ topics::control::request::BUF }, control_command::Owned>(&cmd_sub)? {
             let cmd = typed.get()?;
             let cmd_id = cmd.get_id();
 
@@ -46,12 +46,12 @@ pub fn run() -> Result<()> {
 
             let mut msg = capnp::message::Builder::new_default();
             {
-                let mut ack = msg.init_root::<behave::schema::controls_capnp::control_ack::Builder<'_>>();
+                let mut ack = msg.init_root::<behave::schema::control_ack_capnp::control_ack::Builder<'_>>();
                 ack.set_command_id(cmd_id);
                 ack.set_success(true);
                 ack.set_message("ok".into());
             }
-            topics::control::ack::send(&ack_pub, &msg)?;
+            topics::control::response::send(&ack_pub, &msg)?;
         }
     }
 

@@ -1,6 +1,7 @@
 //! Topic: behave/ControlAck
 //!
-//! Acknowledgments sent from Control -> Behave after each command.
+//! Acknowledgments from Control -> Behave.
+//! Schema: control_ack.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 

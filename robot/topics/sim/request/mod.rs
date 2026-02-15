@@ -1,11 +1,12 @@
-//! Topic: behave/ControlCommand
+//! Topic: behave/SimPose
 //!
-//! Commands sent from Behave -> Control to fly the drone.
+//! Camera pose commands TO the simulator.
+//! Schema: sim_pose.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/ControlCommand";
-pub const BUF: usize = 4096;
+pub const NAME: &str = "behave/SimPose";
+pub const BUF: usize = 256;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
     crate::topics::create_publisher::<BUF>(node, NAME)

@@ -4,4 +4,4 @@ pub mod control_sim;
 pub mod control_irl;
 pub mod behave;
 pub mod communicate;
-pub mod mock_gcs;
+pub mod gcs_mock;

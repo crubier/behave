@@ -5,4 +5,4 @@ Simulated flight controller. Receives ControlCommand messages and tracks simulat
 ## Topics
 
 - Subscribes to: `behave/ControlCommand`
-- Publishes to: `behave/ControlAck`, `behave/DroneState`
+- Publishes to: `behave/ControlAck`

@@ -18,11 +18,11 @@ pub fn run() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let _cmd_sub = topics::control::command::subscribe(&node)?;
-    info!("subscribed to {}", topics::control::command::NAME);
+    let _cmd_sub = topics::control::request::subscribe(&node)?;
+    info!("subscribed to {}", topics::control::request::NAME);
 
-    let _ack_pub = topics::control::ack::publish(&node)?;
-    let _state_pub = topics::control::state::publish(&node)?;
+    let _ack_pub = topics::control::response::publish(&node)?;
+    let _state_pub = topics::control::status::publish(&node)?;
 
     info!("ready -- waiting for hardware integration");
 

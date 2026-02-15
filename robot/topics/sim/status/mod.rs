@@ -1,12 +1,12 @@
-//! Topic: behave/SimPose
+//! Topic: behave/SimStatus
 //!
-//! Camera pose commands for the simulator.
-//! Schema: sim.capnp (colocated)
+//! Telemetry FROM the simulator (future).
+//! Schema: sim_status.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/SimPose";
-pub const BUF: usize = 256;
+pub const NAME: &str = "behave/SimStatus";
+pub const BUF: usize = 4096;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
     crate::topics::create_publisher::<BUF>(node, NAME)

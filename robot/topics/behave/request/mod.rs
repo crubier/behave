@@ -1,11 +1,12 @@
-//! Topic: behave/DroneState
+//! Topic: behave/ActionRequest
 //!
-//! Telemetry published by Control for all nodes to consume.
+//! ActionArgs trees sent from Communicate -> Behave.
+//! No wrapper -- raw ActionArgs capnp message on the wire.
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/DroneState";
-pub const BUF: usize = 4096;
+pub const NAME: &str = "behave/ActionRequest";
+pub const BUF: usize = 65536;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
     crate::topics::create_publisher::<BUF>(node, NAME)
