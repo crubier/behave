@@ -32,14 +32,14 @@ pub fn send_takeoff(pub_: &dyn CmdPublisher, altitude_m: f64) -> Result<()> {
     pub_.send_envelope(crate::ipc::pack::<{ topics::control::request::BUF }>(&msg)?)
 }
 
-pub fn send_goto(pub_: &dyn CmdPublisher, lat: f64, lon: f64, alt: f64, speed: f64) -> Result<()> {
+pub fn send_goto(pub_: &dyn CmdPublisher, easting: f64, northing: f64, alt: f64, speed: f64) -> Result<()> {
     let mut msg = capnp::message::Builder::new_default();
     {
         let mut cmd = msg.init_root::<control_request::Builder<'_>>();
         cmd.set_id(next_cmd_id());
         let mut g = cmd.init_goto();
-        g.set_latitude_deg(lat);
-        g.set_longitude_deg(lon);
+        g.set_easting_m(easting);
+        g.set_northing_m(northing);
         g.set_altitude_m(alt);
         g.set_speed_ms(speed);
     }

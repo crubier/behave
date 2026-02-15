@@ -3,6 +3,7 @@
 //! This module is the only place that knows about individual action types.
 //! The behave node just calls `from_capnp()` and `tick()`.
 
+pub mod io;
 pub mod sequence;
 pub mod fallback;
 pub mod takeoff;
@@ -15,7 +16,7 @@ use anyhow::Result;
 use capnp::message::{Builder, HeapAllocator};
 use log::info;
 
-use crate::controls::CmdPublisher;
+pub use io::ActionIO;
 use crate::schema::actions::action_capnp::action_args;
 
 // ── Tick result type ───────────────────────────────────────────
@@ -144,7 +145,7 @@ pub fn from_capnp(spec: &action_args::Reader<'_>) -> Result<ActionNode> {
 }
 
 /// Start an action node (initialize state from args, may send commands).
-fn start_node(node: &mut ActionNode, cmd: &dyn CmdPublisher) {
+fn start_node(node: &mut ActionNode, io: &ActionIO) {
     if node.started {
         return;
     }
@@ -153,26 +154,26 @@ fn start_node(node: &mut ActionNode, cmd: &dyn CmdPublisher) {
     match node.variant {
         ActionVariant::Sequence => sequence::start(node),
         ActionVariant::Fallback => fallback::start(node),
-        ActionVariant::Takeoff => takeoff::start(node, cmd),
-        ActionVariant::GotoWaypoint => goto_waypoint::start(node, cmd),
-        ActionVariant::ReturnHome => return_home::start(node, cmd),
-        ActionVariant::Land => land::start(node, cmd),
-        ActionVariant::TakePhoto => take_photo::start(node, cmd),
+        ActionVariant::Takeoff => takeoff::start(node, io),
+        ActionVariant::GotoWaypoint => goto_waypoint::start(node, io),
+        ActionVariant::ReturnHome => return_home::start(node, io),
+        ActionVariant::Land => land::start(node, io),
+        ActionVariant::TakePhoto => take_photo::start(node, io),
     }
 }
 
 /// Tick an action node. Starts it lazily if needed.
-pub fn tick(node: &mut ActionNode, cmd: &dyn CmdPublisher) -> Tick<(), bool> {
-    start_node(node, cmd);
+pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
+    start_node(node, io);
 
     match node.variant {
-        ActionVariant::Sequence => sequence::tick(node, cmd),
-        ActionVariant::Fallback => fallback::tick(node, cmd),
-        ActionVariant::Takeoff => takeoff::tick(node, cmd),
-        ActionVariant::GotoWaypoint => goto_waypoint::tick(node, cmd),
-        ActionVariant::ReturnHome => return_home::tick(node, cmd),
-        ActionVariant::Land => land::tick(node, cmd),
-        ActionVariant::TakePhoto => take_photo::tick(node, cmd),
+        ActionVariant::Sequence => sequence::tick(node, io),
+        ActionVariant::Fallback => fallback::tick(node, io),
+        ActionVariant::Takeoff => takeoff::tick(node, io),
+        ActionVariant::GotoWaypoint => goto_waypoint::tick(node, io),
+        ActionVariant::ReturnHome => return_home::tick(node, io),
+        ActionVariant::Land => land::tick(node, io),
+        ActionVariant::TakePhoto => take_photo::tick(node, io),
     }
 }
 

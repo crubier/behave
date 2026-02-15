@@ -32,10 +32,10 @@ struct ReturnHomeCmd {
 }
 
 struct GotoCmd {
-  latitudeDeg  @0 :Float64;
-  longitudeDeg @1 :Float64;
-  altitudeM    @2 :Float64;
-  speedMs      @3 :Float64;   # 0 = default
+  eastingM   @0 :Float64;
+  northingM  @1 :Float64;
+  altitudeM  @2 :Float64;
+  speedMs    @3 :Float64;   # 0 = default
 }
 
 struct CameraCmd {

@@ -1,7 +1,6 @@
 use log::info;
 
-use super::Tick;
-use crate::controls::CmdPublisher;
+use super::{ActionIO, Tick};
 use crate::schema::actions::fallback_capnp::fallback_state;
 
 use super::ActionNode;
@@ -16,7 +15,7 @@ pub fn start(node: &mut ActionNode) {
     }
 }
 
-pub fn tick(node: &mut ActionNode, cmd: &dyn CmdPublisher) -> Tick<(), bool> {
+pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
     let current_index;
     {
         let state = node.state_msg.get_root_as_reader::<fallback_state::Reader<'_>>().unwrap();
@@ -29,7 +28,7 @@ pub fn tick(node: &mut ActionNode, cmd: &dyn CmdPublisher) -> Tick<(), bool> {
         return Tick::Failure(false);
     }
 
-    let child_result = super::tick(&mut node.children[current_index], cmd);
+    let child_result = super::tick(&mut node.children[current_index], io);
 
     match child_result {
         Tick::Running(()) => {

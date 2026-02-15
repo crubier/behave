@@ -3,17 +3,17 @@
 # ── GotoWaypoint ────────────────────────────────────────────────
 
 struct GotoWaypointArgs {
-  latitudeDeg  @0 :Float64;  # WGS-84 latitude  in degrees
-  longitudeDeg @1 :Float64;  # WGS-84 longitude in degrees
-  altitudeM    @2 :Float64;  # Altitude in metres (AGL)
-  speedMs      @3 :Float64;  # Cruise speed in m/s (0 = default)
+  eastingM   @0 :Float64;  # Local-frame easting in metres
+  northingM  @1 :Float64;  # Local-frame northing in metres
+  altitudeM  @2 :Float64;  # Altitude in metres (AGL)
+  speedMs    @3 :Float64;  # Cruise speed in m/s (0 = default)
 }
 
 struct GotoWaypointResult {
-  finalLatitudeDeg  @0 :Float64;
-  finalLongitudeDeg @1 :Float64;
-  finalAltitudeM    @2 :Float64;
-  success           @3 :Bool;
+  finalEastingM   @0 :Float64;
+  finalNorthingM  @1 :Float64;
+  finalAltitudeM  @2 :Float64;
+  success         @3 :Bool;
 }
 
 enum GotoWaypointPhase {
@@ -23,8 +23,8 @@ enum GotoWaypointPhase {
 }
 
 struct GotoWaypointState {
-  currentLatitudeDeg  @0 :Float64;
-  currentLongitudeDeg @1 :Float64;
+  currentEastingM     @0 :Float64;
+  currentNorthingM    @1 :Float64;
   currentAltitudeM    @2 :Float64;
   remainingDistanceM  @3 :Float64;
   phase               @4 :GotoWaypointPhase;

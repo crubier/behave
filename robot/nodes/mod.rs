@@ -1,9 +1,11 @@
 pub mod sense_mock;
-pub mod sense_sim;
+pub mod sense_metaverse;
 pub mod sense_irl;
 pub mod control_mock;
-pub mod control_sim;
+pub mod control_metaverse;
 pub mod control_irl;
+pub mod sim_mock;
+pub mod sim_metaverse;
 pub mod behave;
 pub mod communicate;
 pub mod gcs_mock;

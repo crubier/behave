@@ -1,56 +1,37 @@
+//! GotoWaypoint action -- sends goto command and monitors position via ActionIO.
+
 use log::info;
 
-use super::Tick;
-use crate::controls::{self, CmdPublisher};
-use crate::schema::actions::goto_waypoint_capnp::{goto_waypoint_args, goto_waypoint_state, GotoWaypointPhase};
+use super::{ActionIO, ActionNode, Tick};
+use crate::controls;
 
-use super::ActionNode;
+const ARRIVAL_TOLERANCE_M: f64 = 5.0;
 
-pub fn start(node: &mut ActionNode, cmd: &dyn CmdPublisher) {
-    let args = node.args_msg.get_root_as_reader::<goto_waypoint_args::Reader<'_>>().unwrap();
-    let lat = args.get_latitude_deg();
-    let lon = args.get_longitude_deg();
+pub fn start(node: &mut ActionNode, io: &ActionIO) {
+    let args = node.args_msg.get_root_as_reader::<crate::schema::actions::goto_waypoint_capnp::goto_waypoint_args::Reader<'_>>().unwrap();
+    let east = args.get_easting_m();
+    let north = args.get_northing_m();
     let alt = args.get_altitude_m();
     let spd = args.get_speed_ms();
 
-    info!("[#{}] GOTO start: ({:.6}, {:.6}) alt={:.1}m spd={:.1}m/s", node.id, lat, lon, alt, spd);
-
-    {
-        let mut state = node.state_msg.init_root::<goto_waypoint_state::Builder<'_>>();
-        state.set_current_latitude_deg(0.0);
-        state.set_current_longitude_deg(0.0);
-        state.set_current_altitude_m(0.0);
-        state.set_remaining_distance_m(1000.0);
-        state.set_phase(GotoWaypointPhase::EnRoute);
-    }
-
-    let _ = controls::send_goto(cmd, lat, lon, alt, spd);
+    info!("[#{}] GOTO start: target=({:.1}, {:.1}) alt={:.1}m spd={:.1}m/s", node.id, east, north, alt, spd);
+    let _ = controls::send_goto(io.cmd, east, north, alt, spd);
 }
 
-pub fn tick(node: &mut ActionNode, _cmd: &dyn CmdPublisher) -> Tick<(), bool> {
-    let remaining;
-    {
-        let state = node.state_msg.get_root_as_reader::<goto_waypoint_state::Reader<'_>>().unwrap();
-        remaining = state.get_remaining_distance_m();
-    }
+pub fn tick(node: &mut ActionNode, io: &ActionIO) -> Tick<(), bool> {
+    let args = node.args_msg.get_root_as_reader::<crate::schema::actions::goto_waypoint_capnp::goto_waypoint_args::Reader<'_>>().unwrap();
+    let target_e = args.get_easting_m();
+    let target_n = args.get_northing_m();
 
-    let new_remaining = (remaining - 200.0).max(0.0);
+    let de = io.sense_status.easting_m - target_e;
+    let dn = io.sense_status.northing_m - target_n;
+    let dist = (de * de + dn * dn).sqrt();
 
-    if new_remaining <= 0.0 {
-        {
-            let mut state = node.state_msg.get_root::<goto_waypoint_state::Builder<'_>>().unwrap();
-            state.set_remaining_distance_m(0.0);
-            state.set_phase(GotoWaypointPhase::Arrived);
-        }
-        info!("[#{}] GOTO arrived", node.id);
+    if dist < ARRIVAL_TOLERANCE_M {
+        info!("[#{}] GOTO arrived ({:.1}m from target)", node.id, dist);
         Tick::Success(true)
     } else {
-        let progress = (1.0 - new_remaining / 1000.0) * 100.0;
-        {
-            let mut state = node.state_msg.get_root::<goto_waypoint_state::Builder<'_>>().unwrap();
-            state.set_remaining_distance_m(new_remaining);
-        }
-        info!("[#{}] GOTO en route {:.0}% ({:.0}m left)", node.id, progress, new_remaining);
+        info!("[#{}] GOTO en route ({:.0}m remaining)", node.id, dist);
         Tick::Running(())
     }
 }

@@ -1,8 +1,9 @@
 @0x8d1079e8989b5915;
 
-# ── Control Status Telemetry ───────────────────────────────────
+# ── Control Status ─────────────────────────────────────────────
 #
-# Published by Control for all nodes to consume.
+# Published by Control nodes. Flight controller state only.
+# Position is in SenseStatus.
 
 enum FlightMode {
   idle      @0;
@@ -14,10 +15,7 @@ enum FlightMode {
 }
 
 struct ControlStatus {
-  latitudeDeg  @0 :Float64;
-  longitudeDeg @1 :Float64;
-  altitudeM    @2 :Float64;
-  armed        @3 :Bool;
-  mode         @4 :FlightMode;
-  batteryPct   @5 :Float64;
+  armed      @0 :Bool;
+  mode       @1 :FlightMode;
+  batteryPct @2 :Float64;
 }

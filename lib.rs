@@ -40,6 +40,9 @@ pub mod schema {
     pub mod control_status_capnp {
         include!(concat!(env!("OUT_DIR"), "/control_status_capnp.rs"));
     }
+    pub mod sense_status_capnp {
+        include!(concat!(env!("OUT_DIR"), "/sense_status_capnp.rs"));
+    }
     pub mod sim_request_capnp {
         include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
     }

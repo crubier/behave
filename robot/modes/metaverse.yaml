@@ -1,0 +1,13 @@
+name: metaverse
+description: >
+  Full metaverse simulation mode with UE5.
+  Launch UE5 BehaveSim separately and run send_pose for camera control.
+nodes:
+  sense-metaverse:
+  control-metaverse:
+  sim-metaverse:
+    max_linear_speed: 2.0
+    max_angular_speed: 1.0
+  behave:
+  communicate:
+  gcs-mock:

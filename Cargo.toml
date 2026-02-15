@@ -28,16 +28,16 @@ name = "node-sense-mock"
 path = "robot/nodes/sense_mock/main.rs"
 
 [[bin]]
-name = "node-sense-sim"
-path = "robot/nodes/sense_sim/main.rs"
+name = "node-sense-metaverse"
+path = "robot/nodes/sense_metaverse/main.rs"
 
 [[bin]]
 name = "node-sense-irl"
 path = "robot/nodes/sense_irl/main.rs"
 
 [[bin]]
-name = "node-control-sim"
-path = "robot/nodes/control_sim/main.rs"
+name = "node-control-metaverse"
+path = "robot/nodes/control_metaverse/main.rs"
 
 [[bin]]
 name = "node-control-mock"
@@ -46,6 +46,14 @@ path = "robot/nodes/control_mock/main.rs"
 [[bin]]
 name = "node-control-irl"
 path = "robot/nodes/control_irl/main.rs"
+
+[[bin]]
+name = "node-sim-mock"
+path = "robot/nodes/sim_mock/main.rs"
+
+[[bin]]
+name = "node-sim-metaverse"
+path = "robot/nodes/sim_metaverse/main.rs"
 
 [[bin]]
 name = "node-behave"

@@ -1,10 +1,34 @@
 name: mock
 description: >
-  Lightweight testing mode with a dumb mock control node
-  and a mock GCS that sends a sample mission automatically.
+  Lightweight testing mode -- every command succeeds instantly.
+  A mock GCS sends a sample mission automatically on startup.
+
+  Data flow (all behave I/O goes through ActionIO):
+
+    gcs-mock -> communicate -> behave -> ControlRequest -> control-mock
+                                 ^                            |
+                                 |                            v
+                                 |                        SimRequest
+                                 |                            |
+                                 |                            v
+                          ActionIO (recv)                  sim-mock
+                            - ControlResponse <---+           |
+                            - ControlStatus   <---+           v
+                            - SenseStatus     <---------- sense-mock
+
+  control-mock: receives ControlRequest, acks instantly, publishes
+                SimRequest with the target pose and ControlStatus
+                with armed/mode/battery.
+  sim-mock:     receives SimRequest, echoes it as SimStatus immediately.
+  sense-mock:   receives SimStatus, forwards as SenseStatus.
+  behave:       polls SenseStatus + ControlStatus + ControlResponse,
+                exposes them to actions via ActionIO. Actions send
+                ControlRequest also via ActionIO.
+
 nodes:
   sense-mock:
   control-mock:
+  sim-mock:
   behave:
   communicate:
   gcs-mock:

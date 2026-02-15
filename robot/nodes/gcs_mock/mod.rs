@@ -48,8 +48,8 @@ async fn run_async() -> Result<()> {
             node.set_id(102);
             node.set_name("goto_eiffel".into());
             let mut g = node.init_goto_waypoint();
-            g.set_latitude_deg(48.8584);
-            g.set_longitude_deg(2.2945);
+            g.set_easting_m(500.0);
+            g.set_northing_m(300.0);
             g.set_altitude_m(80.0);
             g.set_speed_ms(15.0);
         }
@@ -64,8 +64,8 @@ async fn run_async() -> Result<()> {
             node.set_id(104);
             node.set_name("goto_notre_dame".into());
             let mut g = node.init_goto_waypoint();
-            g.set_latitude_deg(48.8606);
-            g.set_longitude_deg(2.3376);
+            g.set_easting_m(1200.0);
+            g.set_northing_m(-150.0);
             g.set_altitude_m(80.0);
             g.set_speed_ms(15.0);
         }
