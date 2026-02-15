@@ -1,9 +1,10 @@
 //! Control Metaverse node -- drone flight controller for the UE5 metaverse sim.
 //!
-//! Subscribes to ControlRequest and executes each command (stubbed).
-//! Publishes ControlResponse and ControlStatus telemetry.
+//! Subscribes to ControlRequest, publishes SimRequest with the target pose,
+//! acks the command, and publishes ControlStatus (armed/mode/battery).
+//! The sim_metaverse node interpolates the pose and publishes SimStatus.
 
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
 use iceoryx2::prelude::*;
@@ -12,6 +13,10 @@ use log::{info, warn};
 use behave::schema::control_request_capnp::control_request;
 use behave::schema::control_status_capnp::FlightMode;
 use behave::topics;
+
+fn now_us() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as u64
+}
 
 pub fn run() -> Result<()> {
     behave::logging::init("CtrlMeta");
@@ -28,8 +33,14 @@ pub fn run() -> Result<()> {
     let state_pub = topics::control::status::publish(&node)?;
     info!("publishing {}", topics::control::status::NAME);
 
+    let sim_pub = topics::sim::request::publish(&node)?;
+    info!("publishing {}", topics::sim::request::NAME);
+
     let mut armed = false;
     let mut mode = FlightMode::Idle;
+    let mut easting = 0.0_f64;
+    let mut northing = 0.0_f64;
+    let mut altitude = 0.0_f64;
 
     info!("ready -- waiting for commands");
 
@@ -50,28 +61,31 @@ pub fn run() -> Result<()> {
                     mode = FlightMode::Idle;
                 }
                 control_request::Takeoff(r) => {
-                    let target_alt = r?.get_altitude_m();
-                    info!("cmd #{cmd_id}: TAKEOFF to {target_alt:.1} m");
+                    altitude = r?.get_altitude_m();
+                    info!("cmd #{cmd_id}: TAKEOFF to {altitude:.1} m");
                     mode = FlightMode::TakingOff;
                 }
-                control_request::Land(r) => {
-                    let spd = r?.get_descent_speed_ms();
-                    info!("cmd #{cmd_id}: LAND at {spd:.1} m/s descent");
+                control_request::Land(_) => {
+                    altitude = 0.0;
+                    info!("cmd #{cmd_id}: LAND");
                     mode = FlightMode::Landing;
                 }
                 control_request::Hover(()) => {
                     info!("cmd #{cmd_id}: HOVER");
                     mode = FlightMode::Hovering;
                 }
-                control_request::ReturnHome(r) => {
-                    let rth_alt = r?.get_altitude_m();
-                    info!("cmd #{cmd_id}: RETURN HOME at {rth_alt:.1} m");
+                control_request::ReturnHome(_) => {
+                    easting = 0.0;
+                    northing = 0.0;
+                    info!("cmd #{cmd_id}: RETURN HOME");
                     mode = FlightMode::Returning;
                 }
                 control_request::Goto(r) => {
                     let r = r?;
-                    info!("cmd #{cmd_id}: GOTO ({:.1}, {:.1}) alt={:.1}m spd={:.1}m/s",
-                        r.get_easting_m(), r.get_northing_m(), r.get_altitude_m(), r.get_speed_ms());
+                    easting = r.get_easting_m();
+                    northing = r.get_northing_m();
+                    altitude = r.get_altitude_m();
+                    info!("cmd #{cmd_id}: GOTO ({easting:.1}, {northing:.1}) alt={altitude:.1}m");
                     mode = FlightMode::Flying;
                 }
                 control_request::TriggerCamera(r) => {
@@ -82,7 +96,7 @@ pub fn run() -> Result<()> {
 
             info!("cmd #{cmd_id}: ACK ok");
 
-            // Send ack
+            // Ack
             {
                 let mut msg = capnp::message::Builder::new_default();
                 {
@@ -93,9 +107,28 @@ pub fn run() -> Result<()> {
                 }
                 topics::control::response::send(&ack_pub, &msg)?;
             }
+
+            // Publish SimRequest with the target pose
+            // (sim_metaverse will interpolate toward it, sense_metaverse will forward as SenseStatus)
+            {
+                let mut msg = capnp::message::Builder::new_default();
+                {
+                    let mut req = msg.init_root::<behave::schema::sim_request_capnp::sim_request::Builder<'_>>();
+                    req.set_utime(now_us());
+                    let mut pose = req.init_pose();
+                    pose.set_x(easting);
+                    pose.set_y(northing);
+                    pose.set_z(altitude);
+                    pose.set_qw(1.0);
+                    pose.set_qx(0.0);
+                    pose.set_qy(0.0);
+                    pose.set_qz(0.0);
+                }
+                topics::sim::request::send(&sim_pub, &msg)?;
+            }
         }
 
-        // Publish telemetry
+        // Publish control status every tick
         {
             let mut msg = capnp::message::Builder::new_default();
             {

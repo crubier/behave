@@ -10,60 +10,17 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use iceoryx2::prelude::*;
 
-// Re-use the IPC envelope from sim_bridge (same buffer layout).
-// Note: send_pose publishes SimRequest, not SimStatus, but the
-// envelope struct is identical.
-
-mod sim_request_capnp {
-    // Build this schema locally for this binary.
-    // The sim_bridge build.rs only compiles sim_status now,
-    // so we compile sim_request here inline via build.rs.
-    include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
-}
-
-const REQ_BUF: usize = 256;
-
-#[repr(C)]
-#[derive(Clone, Debug, ZeroCopySend)]
-struct IpcReqMessage {
-    len: u32,
-    data: [u8; REQ_BUF],
-}
-
-impl Default for IpcReqMessage {
-    fn default() -> Self {
-        Self {
-            len: 0,
-            data: [0u8; REQ_BUF],
-        }
-    }
-}
-
-fn pack_req(
-    builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
-) -> anyhow::Result<IpcReqMessage> {
-    let mut buf = Vec::new();
-    capnp::serialize::write_message(&mut buf, builder)?;
-    anyhow::ensure!(buf.len() <= REQ_BUF, "message too large");
-    let mut msg = IpcReqMessage::default();
-    msg.len = buf.len() as u32;
-    msg.data[..buf.len()].copy_from_slice(&buf);
-    Ok(msg)
-}
+use behave::schema::sim_request_capnp;
+use behave::topics;
 
 fn main() -> anyhow::Result<()> {
     let node = NodeBuilder::new()
         .name(&"send_pose".try_into()?)
         .create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let service = node
-        .service_builder(&"behave/SimRequest".try_into()?)
-        .publish_subscribe::<IpcReqMessage>()
-        .open_or_create()?;
+    let pub_ = topics::sim::request::publish(&node)?;
 
-    let publisher = service.publisher_builder().create()?;
-
-    eprintln!("[send_pose] publishing on behave/SimRequest  (Ctrl-C to stop)");
+    eprintln!("[send_pose] publishing on {}  (Ctrl-C to stop)", topics::sim::request::NAME);
 
     let start = Instant::now();
     let period = std::time::Duration::from_millis(50); // 20 Hz
@@ -103,10 +60,7 @@ fn main() -> anyhow::Result<()> {
             pose.set_qz(qz);
         }
 
-        let msg = pack_req(&builder)?;
-        let sample = publisher.loan_uninit()?;
-        let sample = sample.write_payload(msg);
-        sample.send()?;
+        topics::sim::request::send(&pub_, &builder)?;
 
         eprintln!(
             "[send_pose] t={t:.1}s  pos=({x:.2}, {y:.2}, {z:.2})  yaw={yaw:.2}rad"

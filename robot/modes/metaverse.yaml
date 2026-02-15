@@ -6,8 +6,8 @@ nodes:
   sense-metaverse:
   control-metaverse:
   sim-metaverse:
-    max_linear_speed: 2.0
-    max_angular_speed: 1.0
+    max_linear_speed: 10.0
+    max_angular_speed: 2.0
   behave:
   communicate:
   gcs-mock:

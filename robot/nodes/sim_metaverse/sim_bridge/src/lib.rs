@@ -1,55 +1,16 @@
 //! C FFI bridge: iceoryx2 camera-pose subscriber for UE5.
 //!
 //! A background thread subscribes to the `"behave/SimStatus"` iceoryx2 service
-//! and stores the latest camera pose. The UE5 game thread polls via the
+//! using the same `IpcMessage` type as the main behave crate (required for
+//! iceoryx2 cross-process type matching). The UE5 game thread polls via the
 //! exported C functions.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 
-use iceoryx2::prelude::*;
-
-mod sim_status_capnp {
-    include!(concat!(env!("OUT_DIR"), "/sim_status_capnp.rs"));
-}
-
-// ── IPC message envelope (mirrors robot/ipc.rs) ──────────────────
-
-const STATUS_BUF: usize = 4096;
-
-#[repr(C)]
-#[derive(Clone, Debug, ZeroCopySend)]
-pub struct IpcStatusMessage {
-    pub len: u32,
-    pub data: [u8; STATUS_BUF],
-}
-
-impl Default for IpcStatusMessage {
-    fn default() -> Self {
-        Self {
-            len: 0,
-            data: [0u8; STATUS_BUF],
-        }
-    }
-}
-
-/// Serialize a Cap'n Proto builder into an [`IpcStatusMessage`].
-pub fn pack(
-    builder: &capnp::message::Builder<capnp::message::HeapAllocator>,
-) -> anyhow::Result<IpcStatusMessage> {
-    let mut buf = Vec::new();
-    capnp::serialize::write_message(&mut buf, builder)?;
-    anyhow::ensure!(
-        buf.len() <= STATUS_BUF,
-        "capnp message too large: {} bytes (max {STATUS_BUF})",
-        buf.len()
-    );
-    let mut msg = IpcStatusMessage::default();
-    msg.len = buf.len() as u32;
-    msg.data[..buf.len()].copy_from_slice(&buf);
-    Ok(msg)
-}
+use behave::schema::sim_status_capnp::sim_status;
+use behave::topics;
 
 // ── C-compatible pose struct ─────────────────────────────────────
 
@@ -108,51 +69,20 @@ static RUNNING: AtomicBool = AtomicBool::new(false);
 // ── Background subscriber loop ──────────────────────────────────
 
 fn bridge_loop() -> anyhow::Result<()> {
+    use iceoryx2::prelude::*;
+
     let node = NodeBuilder::new()
         .name(&"sim_bridge".try_into()?)
         .create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let service = node
-        .service_builder(&"behave/SimStatus".try_into()?)
-        .publish_subscribe::<IpcStatusMessage>()
-        .open_or_create()?;
+    let sub = topics::sim::status::subscribe(&node)?;
 
-    let subscriber = service.subscriber_builder().create()?;
-
-    eprintln!("[sim_bridge] subscriber ready on behave/SimStatus");
+    eprintln!("[sim_bridge] subscriber ready on {}", topics::sim::status::NAME);
 
     while RUNNING.load(Ordering::SeqCst) {
-        while let Some(sample) = subscriber.receive()? {
-            let len = sample.len as usize;
-            if len > STATUS_BUF {
-                eprintln!("[sim_bridge] bad message len {len}");
-                continue;
-            }
-            let reader = capnp::serialize::read_message(
-                &sample.data[..len],
-                capnp::message::ReaderOptions::default(),
-            );
-            let reader = match reader {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("[sim_bridge] capnp read error: {e}");
-                    continue;
-                }
-            };
-            let status = match reader.get_root::<sim_status_capnp::sim_status::Reader>() {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("[sim_bridge] capnp root error: {e}");
-                    continue;
-                }
-            };
-            let pose = match status.get_pose() {
-                Ok(p) => p,
-                Err(e) => {
-                    eprintln!("[sim_bridge] capnp pose error: {e}");
-                    continue;
-                }
-            };
+        while let Some(typed) = topics::receive::<{ topics::sim::status::BUF }, sim_status::Owned>(&sub)? {
+            let status = typed.get()?;
+            let pose = status.get_pose()?;
 
             let c = CameraPoseC {
                 x: pose.get_x(),
