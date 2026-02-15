@@ -15,6 +15,8 @@ env_logger = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
+dioxus-core = "0.7"
+dioxus = { version = "0.7", default-features = false, features = ["macro", "signals", "third-party-renderer"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
 iceoryx2-bb-container = "0.7"
 

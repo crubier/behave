@@ -22,6 +22,11 @@ pub mod topics;
 #[path = "actions/mod.rs"]
 pub mod actions;
 
+// ── Actions (Dioxus renderer) ─────────────────────────────────
+
+#[path = "actions_dioxus/mod.rs"]
+pub mod actions_dioxus;
+
 // ── Generated FlatBuffer schemas ────────────────────────────────
 
 #[allow(unused_imports, clippy::all, warnings)]
