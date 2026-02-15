@@ -90,6 +90,13 @@ pub mod land;
 pub mod goto_waypoint;
 pub mod return_home;
 pub mod take_photo;
+/// Top-level composed protobuf types: `ActionArgs`, `ActionResult`,
+/// `ActionOutput`, `ActionInput`, `ActionState`, `ActionNode`, and `Run`.
+pub mod action_proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.rs"));
+}
+
+pub mod from_proto;
 pub mod example_mission;
 
 /// Re-export the custom elements module for use as `dioxus_elements` in

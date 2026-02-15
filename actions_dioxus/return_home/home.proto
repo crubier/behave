@@ -1,0 +1,22 @@
+syntax = "proto3";
+package behave.actions.home;
+
+message HomeArgs {
+    double altitude_m = 1;
+}
+
+message HomeOutput {
+    uint32 mode = 1;
+}
+
+message HomeResult {
+    uint32 final_mode = 1;
+}
+
+message HomeInput {
+    bool abort = 1;
+}
+
+message HomeState {
+    uint32 mode = 1;
+}

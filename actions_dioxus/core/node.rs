@@ -1,23 +1,17 @@
 //! RendererNode -- the "real DOM" node managed by the behavior tree renderer.
-//!
-//! Each Dioxus element becomes a RendererNode. The renderer maintains a
-//! HashMap<ElementId, RendererNode> that mirrors the Dioxus element tree,
-//! plus execution state managed by `NodeBehavior` trait objects.
-
-use std::collections::HashMap;
 
 use dioxus_core::ElementId;
 
 use super::behavior::{ChildResult, NodeBehavior};
+use super::data::{Run, RunId};
 
 /// A node in the renderer's tree. One per Dioxus element.
 pub struct RendererNode {
     /// Element tag name (e.g. "takeoff", "sequence").
     pub tag: &'static str,
 
-    /// Dynamic attributes set on this element (name -> value).
-    /// Only f64 values are tracked (action parameters).
-    pub attrs: HashMap<&'static str, f64>,
+    /// Serialized protobuf Args, set via the `args` attribute.
+    pub args_bytes: Vec<u8>,
 
     /// Parent element, if any. Root has None.
     pub parent: Option<ElementId>,
@@ -27,18 +21,20 @@ pub struct RendererNode {
 
     /// Execution state.
     pub state: NodeState,
+
+    /// The current Run record for this node, if activated.
+    pub run: Option<Run>,
 }
 
 /// Execution state of a renderer node.
 pub enum NodeState {
-    /// Created by Dioxus but not yet activated by its parent.
+    /// Created by Dioxus but not yet activated.
     Idle,
 
-    /// Currently executing. The `NodeBehavior` trait object drives
-    /// the node's lifecycle (activate, tick, child-complete).
+    /// Currently executing.
     Active(Box<dyn NodeBehavior>),
 
-    /// Finished executing with a result.
+    /// Finished executing.
     Completed(ChildResult),
 }
 
@@ -47,15 +43,21 @@ impl RendererNode {
     pub fn new(tag: &'static str) -> Self {
         Self {
             tag,
-            attrs: HashMap::new(),
+            args_bytes: Vec::new(),
             parent: None,
             children: Vec::new(),
             state: NodeState::Idle,
+            run: None,
         }
     }
 
-    /// Whether this node is active (has a running NodeBehavior).
+    /// Whether this node is active.
     pub fn is_active(&self) -> bool {
         matches!(self.state, NodeState::Active(_))
+    }
+
+    /// Start a new Run record.
+    pub fn start_run(&mut self, id: RunId, started_at: super::data::Utime) {
+        self.run = Some(Run::new(id, self.tag, started_at));
     }
 }

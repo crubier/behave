@@ -1,34 +1,50 @@
 //! TakePhoto node -- triggers camera and waits for ack.
 
-use std::collections::HashMap;
-
 use log::info;
+use prost::Message;
 
 use crate::actions::io::ActionIO;
-use crate::actions_dioxus::core::behavior::{NodeBehavior, NodeResponse};
-use crate::controls;
+use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
+use crate::actions_dioxus::core::data::ProtoBytes;
 
-pub struct TakePhotoNode;
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/behave.actions.photo.rs"));
+}
+use proto::*;
 
-impl TakePhotoNode {
-    pub fn from_attrs(_attrs: &HashMap<&'static str, f64>) -> Self {
-        Self
-    }
+// ── Component ───────────────────────────────────────────────────
+
+use dioxus::prelude::*;
+#[allow(non_snake_case, unused)]
+mod dioxus_elements {
+    pub use crate::actions_dioxus::core::elements::*;
 }
 
-impl NodeBehavior for TakePhotoNode {
+#[component]
+pub fn Photo() -> Element {
+    let args = ProtoBytes(PhotoArgs {}.encode_to_vec());
+    rsx! { photo { args } }
+}
+
+// ── Node ────────────────────────────────────────────────────────
+
+pub type TakePhotoNode = ActionNode<PhotoArgs, PhotoOutput, PhotoResult, PhotoState>;
+
+impl Behavior for TakePhotoNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {
-        info!("[take_photo] start");
-        let _ = controls::send_trigger_camera(io.cmd, "");
+        info!("[photo] start");
+        let _ = crate::controls::send_trigger_camera(io.cmd, "");
         NodeResponse::Running
     }
 
     fn on_tick(&mut self, io: &ActionIO) -> NodeResponse {
         if io.control_response.success {
-            info!("[take_photo] captured");
+            self.output.acked = true;
+            self.result.captured = true;
+            self.state.acked = true;
+            info!("[photo] captured");
             NodeResponse::Success
         } else {
-            info!("[take_photo] waiting for ack");
             NodeResponse::Running
         }
     }

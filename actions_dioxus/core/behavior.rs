@@ -1,28 +1,26 @@
-//! Unified node behavior trait for behavior tree elements.
+//! Unified node behavior traits for behavior tree elements.
 //!
-//! Every core element (sequence, fallback, takeoff, land, etc.) implements
-//! `NodeBehavior`. The composite/leaf distinction is emergent -- not enforced
-//! by the type system:
+//! Three layers:
 //!
-//! - A "leaf" overrides `on_activate` (send command) and `on_tick` (poll sensor).
-//! - A "composite" overrides `on_activate` (activate first child) and
-//!   `on_child_complete` (advance/propagate).
-//! - A "hybrid" (e.g. while-decorator) can use all three.
+//! - [`ActionNode<A,O,R,S>`] -- generic struct holding the 4 proto fields.
+//! - [`Behavior`] -- trait for lifecycle logic (activate, tick, child_complete).
+//!   You only implement this. Data accessors are automatic.
+//! - [`NodeBehavior`] -- raw-bytes trait used by the renderer.
+//!   Automatically implemented via blanket impl. Never implement directly.
+
+use prost::Message;
 
 use crate::actions::io::ActionIO;
+
+// ── Control flow types ──────────────────────────────────────────
 
 /// What a node tells the renderer to do next.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeResponse {
-    /// Keep running -- tick me again next cycle.
     Running,
-    /// Activate my child at this index.
     ActivateChild(usize),
-    /// Activate all children simultaneously (parallel execution).
     ActivateAllChildren,
-    /// I succeeded.
     Success,
-    /// I failed.
     Failure,
 }
 
@@ -33,39 +31,62 @@ pub enum ChildResult {
     Failure,
 }
 
-/// The behavior of a core element in the behavior tree.
+// ── ActionNode (generic struct) ─────────────────────────────────
+
+/// Generic node struct that every action type uses.
 ///
-/// Implement this trait for each core element type (sequence, takeoff, etc.).
-/// The renderer creates a `Box<dyn NodeBehavior>` when an element is activated,
-/// and calls the appropriate method each cycle.
+/// Holds the 4 proto fields. Concrete types are type aliases:
 ///
-/// # Defaults
+/// ```ignore
+/// type TakeoffNode = ActionNode<TakeoffArgs, TakeoffOutput, TakeoffResult, TakeoffState>;
+/// ```
+pub struct ActionNode<A, O, R, S> {
+    pub args: A,
+    pub output: O,
+    pub result: R,
+    pub state: S,
+}
+
+impl<A: Message + Default, O: Default, R: Default, S: Default> ActionNode<A, O, R, S> {
+    /// Decode args from serialized protobuf, default everything else.
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self {
+            args: A::decode(bytes).unwrap_or_default(),
+            output: O::default(),
+            result: R::default(),
+            state: S::default(),
+        }
+    }
+}
+
+// ── Behavior (what you implement) ───────────────────────────────
+
+/// Lifecycle trait for action nodes. Implement this on
+/// `ActionNode<YourArgs, YourOutput, YourResult, YourState>`.
 ///
-/// - `on_tick` returns `Running` (composites that only react to child results).
-/// - `on_child_complete` propagates the child's result (leaves that have no children).
-pub trait NodeBehavior {
-    /// Called once when this node is activated by the renderer.
-    ///
-    /// - Leaves: send the initial command, return `Running`.
-    /// - Composites: return `ActivateChild(0)` to start the first child.
+/// You get data accessors (output/result/state) and encoding for free.
+/// Just write the behavior.
+///
+/// ```ignore
+/// impl Behavior for TakeoffNode {
+///     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {
+///         controls::send_takeoff(io.cmd, self.args.altitude_m);
+///         NodeResponse::Running
+///     }
+///     fn on_tick(&mut self, io: &ActionIO) -> NodeResponse {
+///         self.output.current_altitude_m = io.sense_status.altitude_m;
+///         if close_enough { NodeResponse::Success } else { NodeResponse::Running }
+///     }
+/// }
+/// ```
+pub trait Behavior {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse;
 
-    /// Called each tick while this node is active.
-    ///
-    /// Override for leaves that need to poll sensor state.
-    /// Composites typically leave this as the default (`Running`).
     fn on_tick(&mut self, io: &ActionIO) -> NodeResponse {
         let _ = io;
         NodeResponse::Running
     }
 
-    /// Called when a direct child completes with `result`.
-    ///
-    /// `child_index` is the index of the child that completed.
-    /// `child_count` is the total number of children.
-    ///
-    /// Override for composites. The default propagates the child's
-    /// result directly (useful for single-child wrappers/decorators).
     fn on_child_complete(
         &mut self,
         child_index: usize,
@@ -77,5 +98,57 @@ pub trait NodeBehavior {
             ChildResult::Success => NodeResponse::Success,
             ChildResult::Failure => NodeResponse::Failure,
         }
+    }
+
+    fn on_command(&mut self, _cmd: &[u8]) {}
+}
+
+// ── NodeBehavior (raw bytes, used by renderer) ──────────────────
+
+/// Low-level trait used by the renderer. Returns serialized protobuf.
+///
+/// **Do not implement this directly.** Implement [`Behavior`] on an
+/// [`ActionNode`] instead -- you get this for free.
+pub trait NodeBehavior {
+    fn on_activate(&mut self, io: &ActionIO) -> NodeResponse;
+    fn on_tick(&mut self, io: &ActionIO) -> NodeResponse;
+    fn on_child_complete(&mut self, child_index: usize, child_count: usize, result: ChildResult) -> NodeResponse;
+    fn output_bytes(&self) -> Vec<u8>;
+    fn result_bytes(&self) -> Vec<u8>;
+    fn state_bytes(&self) -> Vec<u8>;
+    fn on_command(&mut self, cmd: &[u8]);
+}
+
+/// Blanket impl: ActionNode<A,O,R,S> where Behavior is implemented
+/// automatically becomes a NodeBehavior. Encoding + data accessors
+/// are handled here -- zero boilerplate in node code.
+impl<A, O, R, S> NodeBehavior for ActionNode<A, O, R, S>
+where
+    A: 'static,
+    O: Message + Clone + Default + 'static,
+    R: Message + Clone + Default + 'static,
+    S: Message + Clone + Default + 'static,
+    Self: Behavior,
+{
+    fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {
+        Behavior::on_activate(self, io)
+    }
+    fn on_tick(&mut self, io: &ActionIO) -> NodeResponse {
+        Behavior::on_tick(self, io)
+    }
+    fn on_child_complete(&mut self, i: usize, n: usize, r: ChildResult) -> NodeResponse {
+        Behavior::on_child_complete(self, i, n, r)
+    }
+    fn output_bytes(&self) -> Vec<u8> {
+        self.output.encode_to_vec()
+    }
+    fn result_bytes(&self) -> Vec<u8> {
+        self.result.encode_to_vec()
+    }
+    fn state_bytes(&self) -> Vec<u8> {
+        self.state.encode_to_vec()
+    }
+    fn on_command(&mut self, cmd: &[u8]) {
+        Behavior::on_command(self, cmd)
     }
 }

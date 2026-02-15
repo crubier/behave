@@ -1,12 +1,14 @@
 //! BehaviorTreeRenderer -- the Dioxus custom renderer that executes
 //! behavior trees.
 //!
-//! Implements `WriteMutations` to receive tree structure changes from
-//! Dioxus, and provides `tick_actions()` to poll running nodes and
-//! propagate results through the tree.
+//! Three data flows managed by the renderer:
 //!
-//! All node types (composites and leaves alike) go through the same
-//! unified `NodeBehavior` trait and `handle_response()` dispatch.
+//! - **Output** (up): each tick, polls `behavior.output()` and stores
+//!   it in the node's `Run` record.
+//! - **Result** (up): on completion, calls `behavior.result()` and
+//!   finalizes the `Run`. Child runs are attached to parent runs.
+//! - **Command** (down): `send_command()` delivers data to a running node
+//!   via `behavior.on_command()`.
 
 use std::collections::HashMap;
 
@@ -16,95 +18,97 @@ use log::{info, warn};
 use crate::actions::io::ActionIO;
 
 use super::behavior::{ChildResult, NodeBehavior, NodeResponse};
+use super::data::{now_utime, ProtoBytes, Run, RunId, RunStatus};
 use super::node::{NodeState, RendererNode};
 
 // ── Node factory ────────────────────────────────────────────────
 
-/// Creates a `NodeBehavior` for a core element from its tag and attributes.
-///
-/// Returns `None` for unknown tags (placeholders, text nodes, etc.).
-fn create_node(
-    tag: &str,
-    attrs: &HashMap<&'static str, f64>,
-) -> Option<Box<dyn NodeBehavior>> {
+/// Create a `NodeBehavior` from a tag name and serialized proto Args.
+fn create_node(tag: &str, args: &[u8]) -> Option<Box<dyn NodeBehavior>> {
     match tag {
-        "sequence" => Some(Box::new(
-            crate::actions_dioxus::sequence::SequenceNode::from_attrs(attrs),
-        )),
-        "fallback" => Some(Box::new(
-            crate::actions_dioxus::fallback::FallbackNode::from_attrs(attrs),
-        )),
-        "takeoff" => Some(Box::new(
-            crate::actions_dioxus::takeoff::TakeoffNode::from_attrs(attrs),
-        )),
-        "land" => Some(Box::new(
-            crate::actions_dioxus::land::LandNode::from_attrs(attrs),
-        )),
-        "goto" => Some(Box::new(
-            crate::actions_dioxus::goto_waypoint::GotoWaypointNode::from_attrs(attrs),
-        )),
-        "home" => Some(Box::new(
-            crate::actions_dioxus::return_home::ReturnHomeNode::from_attrs(attrs),
-        )),
-        "photo" => Some(Box::new(
-            crate::actions_dioxus::take_photo::TakePhotoNode::from_attrs(attrs),
-        )),
-        "parallel" => Some(Box::new(
-            crate::actions_dioxus::parallel::ParallelNode::from_attrs(attrs),
-        )),
+        "sequence" => Some(Box::new(crate::actions_dioxus::sequence::SequenceNode::from_bytes(args))),
+        "fallback" => Some(Box::new(crate::actions_dioxus::fallback::FallbackNode::from_bytes(args))),
+        "takeoff"  => Some(Box::new(crate::actions_dioxus::takeoff::TakeoffNode::from_bytes(args))),
+        "land"     => Some(Box::new(crate::actions_dioxus::land::LandNode::from_bytes(args))),
+        "goto"     => Some(Box::new(crate::actions_dioxus::goto_waypoint::GotoWaypointNode::from_bytes(args))),
+        "home"     => Some(Box::new(crate::actions_dioxus::return_home::ReturnHomeNode::from_bytes(args))),
+        "photo"    => Some(Box::new(crate::actions_dioxus::take_photo::TakePhotoNode::from_bytes(args))),
+        "parallel" => Some(Box::new(crate::actions_dioxus::parallel::ParallelNode::from_bytes(args))),
         _ => None,
     }
 }
 
 // ── Renderer ────────────────────────────────────────────────────
 
-/// The Dioxus custom renderer for behavior trees.
-///
-/// Maintains a tree of `RendererNode`s that mirrors the Dioxus element
-/// tree. Each active node holds a `Box<dyn NodeBehavior>` that drives
-/// its lifecycle through a unified `handle_response()` dispatch.
-///
-/// # Lifecycle
-///
-/// 1. Dioxus calls `WriteMutations` methods to build/modify the tree.
-/// 2. The renderer tracks parent-child relationships and element types.
-/// 3. `activate()` creates a `NodeBehavior`, calls `on_activate`, and
-///    dispatches the response (which may activate children, complete, etc.).
-/// 4. `tick_actions()` calls `on_tick` on all active nodes each cycle.
-/// 5. When a child completes, the parent's `on_child_complete` is called,
-///    and its response is dispatched the same way.
 pub struct BehaviorTreeRenderer {
-    /// All nodes in the tree, keyed by Dioxus ElementId.
+    /// All nodes, keyed by Dioxus ElementId.
     nodes: HashMap<ElementId, RendererNode>,
 
-    /// The Dioxus mutation stack. Mutations push/pop node IDs here.
+    /// Dioxus mutation stack.
     stack: Vec<ElementId>,
 
-    /// Root element ID, if a tree is active.
+    /// Root element ID.
     root: Option<ElementId>,
 
-    /// Template tag cache: maps template pointer -> tag name.
+    /// Template tag cache.
     template_tags: HashMap<usize, &'static str>,
 
-    /// Whether the mission completed (root propagated a result).
-    mission_result: Option<ChildResult>,
+    /// Completed mission run (set when root completes).
+    mission_run: Option<Run>,
+
+    /// Monotonic run ID counter.
+    next_run_id: RunId,
 }
 
 impl BehaviorTreeRenderer {
-    /// Create a new empty renderer.
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
             stack: Vec::new(),
             root: None,
             template_tags: HashMap::new(),
-            mission_result: None,
+            mission_run: None,
+            next_run_id: 1,
         }
     }
 
-    /// Take the mission result if the root has completed.
-    pub fn take_mission_result(&mut self) -> Option<ChildResult> {
-        self.mission_result.take()
+    fn alloc_run_id(&mut self) -> RunId {
+        let id = self.next_run_id;
+        self.next_run_id += 1;
+        id
+    }
+
+    /// Take the completed mission run, if the root has finished.
+    pub fn take_mission_run(&mut self) -> Option<Run> {
+        self.mission_run.take()
+    }
+
+    /// Get a snapshot of the current run tree (for real-time reporting).
+    /// Returns the root's Run with all children, including live output.
+    pub fn snapshot(&self) -> Option<Run> {
+        self.root.and_then(|id| self.build_run_snapshot(id))
+    }
+
+    /// Send a serialized protobuf command to a specific node.
+    pub fn send_command(&mut self, id: ElementId, cmd: &[u8]) {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            if let NodeState::Active(ref mut behavior) = node.state {
+                behavior.on_command(cmd);
+            }
+        }
+    }
+
+    /// Send a serialized protobuf command to all active nodes with the given tag.
+    pub fn send_command_by_tag(&mut self, tag: &str, cmd: &[u8]) {
+        let ids: Vec<ElementId> = self
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.tag == tag && n.is_active())
+            .map(|(&id, _)| id)
+            .collect();
+        for id in ids {
+            self.send_command(id, cmd);
+        }
     }
 
     /// Number of tracked nodes.
@@ -112,28 +116,44 @@ impl BehaviorTreeRenderer {
         self.nodes.len()
     }
 
+    // ── Run snapshots ───────────────────────────────────────────
+
+    /// Build a recursive run snapshot for the given node.
+    fn build_run_snapshot(&self, id: ElementId) -> Option<Run> {
+        let node = self.nodes.get(&id)?;
+        let mut run = node.run.clone()?;
+
+        // Recurse into children
+        run.children.clear();
+        for &child_id in &node.children {
+            if let Some(child_run) = self.build_run_snapshot(child_id) {
+                run.children.push(child_run);
+            }
+        }
+
+        Some(run)
+    }
+
     // ── Unified response handling ───────────────────────────────
 
-    /// Central dispatch: handle any `NodeResponse` from any node.
-    ///
-    /// All lifecycle methods (`on_activate`, `on_tick`, `on_child_complete`)
-    /// funnel their responses through here.
     fn handle_response(&mut self, id: ElementId, response: NodeResponse, io: &ActionIO) {
         match response {
-            NodeResponse::Running => {
-                // Nothing to do -- node will be ticked next cycle.
-            }
+            NodeResponse::Running => {}
             NodeResponse::ActivateChild(index) => {
-                let child_id = self.nodes.get(&id)
+                let child_id = self
+                    .nodes
+                    .get(&id)
                     .and_then(|n| n.children.get(index).copied());
                 if let Some(cid) = child_id {
                     self.activate(cid, io);
                 } else {
-                    warn!("ActivateChild({index}) out of bounds for node");
+                    warn!("ActivateChild({index}) out of bounds");
                 }
             }
             NodeResponse::ActivateAllChildren => {
-                let child_ids: Vec<ElementId> = self.nodes.get(&id)
+                let child_ids: Vec<ElementId> = self
+                    .nodes
+                    .get(&id)
                     .map(|n| n.children.clone())
                     .unwrap_or_default();
                 for cid in child_ids {
@@ -141,41 +161,83 @@ impl BehaviorTreeRenderer {
                 }
             }
             NodeResponse::Success => {
-                if let Some(node) = self.nodes.get_mut(&id) {
-                    node.state = NodeState::Completed(ChildResult::Success);
-                }
+                self.complete_node(id, RunStatus::Succeeded);
                 self.propagate_up(id, ChildResult::Success, io);
             }
             NodeResponse::Failure => {
-                if let Some(node) = self.nodes.get_mut(&id) {
-                    node.state = NodeState::Completed(ChildResult::Failure);
-                }
+                self.complete_node(id, RunStatus::Failed);
                 self.propagate_up(id, ChildResult::Failure, io);
             }
         }
     }
 
-    // ── Activation / deactivation ───────────────────────────────
+    // ── Activation / completion ─────────────────────────────────
 
-    /// Activate a node: create its `NodeBehavior`, call `on_activate`,
-    /// and dispatch the response.
     pub fn activate(&mut self, id: ElementId, io: &ActionIO) {
-        let (tag, attrs) = match self.nodes.get(&id) {
-            Some(n) => (n.tag, n.attrs.clone()),
+        let (tag, args) = match self.nodes.get(&id) {
+            Some(n) => (n.tag, n.args_bytes.clone()),
             None => return,
         };
 
-        if let Some(mut behavior) = create_node(tag, &attrs) {
-            info!("[{tag}] activate");
+        if let Some(mut behavior) = create_node(tag, &args) {
+            let run_id = self.alloc_run_id();
+            let now = now_utime();
+            info!("[{tag}] activate (run #{run_id})");
+
             let response = behavior.on_activate(io);
-            self.nodes.get_mut(&id).unwrap().state = NodeState::Active(behavior);
+
+            let node = self.nodes.get_mut(&id).unwrap();
+            node.start_run(run_id, now);
+            node.state = NodeState::Active(behavior);
+
             self.handle_response(id, response, io);
         } else {
-            warn!("[{tag}] unknown element -- cannot activate");
+            warn!("[{tag}] unknown element");
         }
     }
 
-    /// Deactivate a node and all its descendants.
+    /// Finalize a node's Run: call `result_bytes()` + `state_bytes()`,
+    /// set end time and status.
+    fn complete_node(&mut self, id: ElementId, status: RunStatus) {
+        let now = now_utime();
+
+        // Collect child runs first (separate borrow scope)
+        let child_runs: Vec<Run> = self
+            .nodes
+            .get(&id)
+            .map(|n| {
+                n.children
+                    .iter()
+                    .filter_map(|&cid| {
+                        self.nodes
+                            .get(&cid)
+                            .and_then(|cn| cn.run.clone())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Now mutate the node
+        if let Some(node) = self.nodes.get_mut(&id) {
+            let (result, state) = if let NodeState::Active(ref behavior) = node.state {
+                (behavior.result_bytes(), behavior.state_bytes())
+            } else {
+                (Vec::new(), Vec::new())
+            };
+
+            if let Some(ref mut run) = node.run {
+                run.complete(status, result, state, now);
+                run.children = child_runs;
+            }
+
+            node.state = NodeState::Completed(match status {
+                RunStatus::Succeeded => ChildResult::Success,
+                RunStatus::Failed => ChildResult::Failure,
+                RunStatus::Running => ChildResult::Success,
+            });
+        }
+    }
+
     pub fn deactivate(&mut self, id: ElementId) {
         if let Some(node) = self.nodes.get(&id) {
             let children: Vec<_> = node.children.clone();
@@ -193,29 +255,34 @@ impl BehaviorTreeRenderer {
 
     // ── Result propagation ──────────────────────────────────────
 
-    /// Propagate a child's result to its parent.
     fn propagate_up(&mut self, child_id: ElementId, result: ChildResult, io: &ActionIO) {
         let parent_id = match self.nodes.get(&child_id).and_then(|n| n.parent) {
             Some(pid) => pid,
             None => {
-                // Root completed -- mission done
-                info!("mission {result:?}");
-                self.mission_result = Some(result);
+                // Root completed -- capture mission run
+                if let Some(node) = self.nodes.get(&child_id) {
+                    if let Some(run) = &node.run {
+                        info!("mission {:?} (run #{})", run.status, run.id);
+                        self.mission_run = Some(run.clone());
+                    }
+                }
                 return;
             }
         };
 
-        // Find the child's index and the parent's child count
         let (child_index, child_count) = {
             let parent = match self.nodes.get(&parent_id) {
                 Some(p) => p,
                 None => return,
             };
-            let idx = parent.children.iter().position(|&c| c == child_id).unwrap_or(0);
+            let idx = parent
+                .children
+                .iter()
+                .position(|&c| c == child_id)
+                .unwrap_or(0);
             (idx, parent.children.len())
         };
 
-        // Call the parent's on_child_complete
         let response = {
             let parent = match self.nodes.get_mut(&parent_id) {
                 Some(p) => p,
@@ -234,11 +301,19 @@ impl BehaviorTreeRenderer {
 
     // ── Tick loop ───────────────────────────────────────────────
 
-    /// Poll all active nodes and propagate any completions.
-    ///
-    /// Call this once per tick cycle (~100ms).
+    /// Poll all active nodes: update output, check for completions.
     pub fn tick_actions(&mut self, io: &ActionIO) {
-        // Collect responses from all active nodes
+        // 1. Update output + state for all active nodes
+        for node in self.nodes.values_mut() {
+            if let NodeState::Active(ref behavior) = node.state {
+                if let Some(ref mut run) = node.run {
+                    run.output = behavior.output_bytes();
+                    run.state = behavior.state_bytes();
+                }
+            }
+        }
+
+        // 2. Collect tick responses
         let responses: Vec<(ElementId, NodeResponse)> = self
             .nodes
             .iter_mut()
@@ -256,7 +331,7 @@ impl BehaviorTreeRenderer {
             })
             .collect();
 
-        // Dispatch responses (can't do this while iterating)
+        // 3. Dispatch
         for (id, response) in responses {
             self.handle_response(id, response, io);
         }
@@ -264,7 +339,6 @@ impl BehaviorTreeRenderer {
 
     // ── Template helpers ────────────────────────────────────────
 
-    /// Extract tag name from a template root node.
     fn tag_from_template(&mut self, template: Template, index: usize) -> &'static str {
         let key = template.roots.as_ptr() as usize + index;
         if let Some(&tag) = self.template_tags.get(&key) {
@@ -278,10 +352,7 @@ impl BehaviorTreeRenderer {
         tag
     }
 
-    /// Activate the root node after the initial `rebuild()`.
-    ///
-    /// Call this once after `dom.rebuild(&mut renderer)` to start
-    /// execution of the behavior tree.
+    /// Activate the root after `dom.rebuild()`.
     pub fn activate_root(&mut self, io: &ActionIO) {
         let root_id = self
             .nodes
@@ -296,7 +367,7 @@ impl BehaviorTreeRenderer {
     }
 }
 
-// ── WriteMutations implementation ───────────────────────────────
+// ── WriteMutations ──────────────────────────────────────────────
 
 impl WriteMutations for BehaviorTreeRenderer {
     fn load_template(&mut self, template: Template, index: usize, id: ElementId) {
@@ -308,7 +379,6 @@ impl WriteMutations for BehaviorTreeRenderer {
     fn append_children(&mut self, id: ElementId, m: usize) {
         let len = self.stack.len();
         let new_children: Vec<ElementId> = self.stack.drain(len - m..).collect();
-
         for &child_id in &new_children {
             if let Some(child) = self.nodes.get_mut(&child_id) {
                 child.parent = Some(id);
@@ -326,15 +396,13 @@ impl WriteMutations for BehaviorTreeRenderer {
         value: &AttributeValue,
         id: ElementId,
     ) {
-        if let Some(node) = self.nodes.get_mut(&id) {
-            match value {
-                AttributeValue::Float(v) => {
-                    node.attrs.insert(name, *v);
+        if name == "args" {
+            if let AttributeValue::Any(any) = value {
+                if let Some(proto) = any.as_any().downcast_ref::<ProtoBytes>() {
+                    if let Some(node) = self.nodes.get_mut(&id) {
+                        node.args_bytes = proto.0.clone();
+                    }
                 }
-                AttributeValue::Int(v) => {
-                    node.attrs.insert(name, *v as f64);
-                }
-                _ => {}
             }
         }
     }
@@ -374,7 +442,6 @@ impl WriteMutations for BehaviorTreeRenderer {
         let parent_id = self.nodes.get(&id).and_then(|n| n.parent);
         let len = self.stack.len();
         let replacements: Vec<ElementId> = self.stack.drain(len - m..).collect();
-
         if let Some(pid) = parent_id {
             if let Some(parent) = self.nodes.get_mut(&pid) {
                 if let Some(pos) = parent.children.iter().position(|&c| c == id) {
@@ -399,7 +466,6 @@ impl WriteMutations for BehaviorTreeRenderer {
         let len = self.stack.len();
         let new_nodes: Vec<ElementId> = self.stack.drain(len - m..).collect();
         let parent_id = self.nodes.get(&id).and_then(|n| n.parent);
-
         if let Some(pid) = parent_id {
             if let Some(parent) = self.nodes.get_mut(&pid) {
                 if let Some(pos) = parent.children.iter().position(|&c| c == id) {
@@ -420,7 +486,6 @@ impl WriteMutations for BehaviorTreeRenderer {
         let len = self.stack.len();
         let new_nodes: Vec<ElementId> = self.stack.drain(len - m..).collect();
         let parent_id = self.nodes.get(&id).and_then(|n| n.parent);
-
         if let Some(pid) = parent_id {
             if let Some(parent) = self.nodes.get_mut(&pid) {
                 if let Some(pos) = parent.children.iter().position(|&c| c == id) {

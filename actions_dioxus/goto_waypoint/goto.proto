@@ -1,0 +1,35 @@
+syntax = "proto3";
+package behave.actions.goto;
+
+message GotoArgs {
+    double easting_m = 1;
+    double northing_m = 2;
+    double altitude_m = 3;
+    double speed_ms = 4;
+}
+
+message GotoOutput {
+    double target_easting_m = 1;
+    double target_northing_m = 2;
+    double current_easting_m = 3;
+    double current_northing_m = 4;
+    double remaining_m = 5;
+}
+
+message GotoResult {
+    double final_easting_m = 1;
+    double final_northing_m = 2;
+    double final_altitude_m = 3;
+}
+
+message GotoInput {
+    bool abort = 1;
+    optional double new_speed_ms = 2;
+}
+
+message GotoState {
+    double current_easting_m = 1;
+    double current_northing_m = 2;
+    double current_altitude_m = 3;
+    double remaining_m = 4;
+}

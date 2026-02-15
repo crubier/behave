@@ -1,0 +1,22 @@
+syntax = "proto3";
+package behave.actions.land;
+
+message LandArgs {
+    double descent_speed_ms = 1;
+}
+
+message LandOutput {
+    double current_altitude_m = 1;
+}
+
+message LandResult {
+    double final_altitude_m = 1;
+}
+
+message LandInput {
+    bool abort = 1;
+}
+
+message LandState {
+    double current_altitude_m = 1;
+}

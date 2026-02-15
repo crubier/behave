@@ -1,0 +1,18 @@
+syntax = "proto3";
+package behave.actions.photo;
+
+message PhotoArgs {}
+
+message PhotoOutput {
+    bool acked = 1;
+}
+
+message PhotoResult {
+    bool captured = 1;
+}
+
+message PhotoInput {}
+
+message PhotoState {
+    bool acked = 1;
+}

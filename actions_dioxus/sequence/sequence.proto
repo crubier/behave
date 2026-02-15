@@ -1,0 +1,21 @@
+syntax = "proto3";
+package behave.actions.sequence;
+
+message SequenceArgs {}
+
+message SequenceOutput {
+    uint32 current_index = 1;
+    uint32 child_count = 2;
+}
+
+message SequenceResult {
+    uint32 children_completed = 1;
+    int32 failed_at_index = 2;  // -1 if none
+}
+
+message SequenceInput {}
+
+message SequenceState {
+    uint32 current_index = 1;
+    uint32 child_count = 2;
+}
