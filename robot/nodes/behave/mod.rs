@@ -67,8 +67,7 @@ pub fn run() -> Result<()> {
             match root_as_action_args(bytes) {
                 Ok(fb_args) => {
                     let id = fb_args.id();
-                    let name = fb_args.name().unwrap_or("?");
-                    info!("=== action #{id} \"{name}\" received ===");
+                    info!("=== action #{id} received ===");
 
                     match behave::actions::from_flatbuf(&fb_args) {
                         Ok(root) => {
@@ -98,12 +97,12 @@ pub fn run() -> Result<()> {
 
             match behave::actions::tick(root, &io) {
                 Tick::Running(()) => {}
-                Tick::Success(_) => {
-                    info!("=== action #{id} SUCCESS ===");
+                Tick::Success(result) => {
+                    info!("=== action #{id} SUCCESS: {result:?} ===");
                     active_action = None;
                 }
-                Tick::Failure(_) => {
-                    warn!("=== action #{id} FAILURE ===");
+                Tick::Failure(result) => {
+                    warn!("=== action #{id} FAILURE: {result:?} ===");
                     active_action = None;
                 }
             }

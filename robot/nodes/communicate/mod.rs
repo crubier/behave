@@ -47,8 +47,7 @@ async fn run_async() -> Result<()> {
         match root_as_action_args(&buf[..len]) {
             Ok(action_args) => {
                 let id = action_args.id();
-                let name = action_args.name().unwrap_or("?");
-                info!("decoded ActionArgs #{id} \"{name}\" -> forwarding to Behave");
+                info!("decoded ActionArgs #{id} -> forwarding to Behave");
 
                 // Forward raw bytes in IpcMessage envelope
                 let mut envelope = IpcMessage::<{ topics::behave::request::BUF }>::default();

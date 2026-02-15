@@ -2,13 +2,10 @@
 
 namespace behave.actions;
 
-table TakePhotoArgs {
-    tag: string;
-}
+table TakePhotoArgs {}
 
 table TakePhotoResult {
     success: bool;
-    file_path: string;
 }
 
 table TakePhotoState {
