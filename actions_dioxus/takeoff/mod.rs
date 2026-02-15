@@ -3,7 +3,7 @@
 use log::info;
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
 use crate::actions_dioxus::core::data::ProtoBytes;
 
@@ -30,7 +30,7 @@ pub fn Takeoff(altitude_m: f64) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type TakeoffNode = ActionNode<TakeoffArgs, TakeoffOutput, TakeoffResult, TakeoffState>;
+pub type TakeoffNode = ActionNode<TakeoffArgs, TakeoffOutput, TakeoffResult, TakeoffInput, TakeoffState>;
 
 impl Behavior for TakeoffNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {

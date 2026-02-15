@@ -1,6 +1,6 @@
 //! Fallback node -- succeeds if ANY child succeeds (left-to-right).
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, ChildResult, NodeResponse};
 
 pub mod proto {
@@ -23,7 +23,7 @@ pub fn Fallback(children: Element) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type FallbackNode = ActionNode<FallbackArgs, FallbackOutput, FallbackResult, FallbackState>;
+pub type FallbackNode = ActionNode<FallbackArgs, FallbackOutput, FallbackResult, FallbackInput, FallbackState>;
 
 impl Behavior for FallbackNode {
     fn on_activate(&mut self, _io: &ActionIO) -> NodeResponse {

@@ -1,6 +1,6 @@
 //! Parallel node -- activates ALL children at once.
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, ChildResult, NodeResponse};
 
 pub mod proto {
@@ -23,7 +23,7 @@ pub fn Parallel(children: Element) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type ParallelNode = ActionNode<ParallelArgs, ParallelOutput, ParallelResult, ParallelState>;
+pub type ParallelNode = ActionNode<ParallelArgs, ParallelOutput, ParallelResult, ParallelInput, ParallelState>;
 
 impl Behavior for ParallelNode {
     fn on_activate(&mut self, _io: &ActionIO) -> NodeResponse {

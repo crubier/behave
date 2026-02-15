@@ -3,7 +3,7 @@
 use log::info;
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
 use crate::actions_dioxus::core::data::ProtoBytes;
 
@@ -28,7 +28,7 @@ pub fn Photo() -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type TakePhotoNode = ActionNode<PhotoArgs, PhotoOutput, PhotoResult, PhotoState>;
+pub type TakePhotoNode = ActionNode<PhotoArgs, PhotoOutput, PhotoResult, PhotoInput, PhotoState>;
 
 impl Behavior for TakePhotoNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {

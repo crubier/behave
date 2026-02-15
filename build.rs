@@ -39,7 +39,7 @@ fn main() {
             config.extern_path(".behave.actions.takeoff",  "crate::actions_dioxus::takeoff::proto");
             config.extern_path(".behave.actions.land",     "crate::actions_dioxus::land::proto");
             config.extern_path(".behave.actions.goto",     "crate::actions_dioxus::goto_waypoint::proto");
-            config.extern_path(".behave.actions.home",     "crate::actions_dioxus::return_home::proto");
+            config.extern_path(".behave.actions.home",     "crate::actions_dioxus::home::proto");
             config.extern_path(".behave.actions.photo",    "crate::actions_dioxus::take_photo::proto");
             config.extern_path(".behave.actions.sequence", "crate::actions_dioxus::sequence::proto");
             config.extern_path(".behave.actions.fallback", "crate::actions_dioxus::fallback::proto");

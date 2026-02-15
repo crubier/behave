@@ -10,7 +10,7 @@
 
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 
 // ── Control flow types ──────────────────────────────────────────
 
@@ -40,20 +40,22 @@ pub enum ChildResult {
 /// ```ignore
 /// type TakeoffNode = ActionNode<TakeoffArgs, TakeoffOutput, TakeoffResult, TakeoffState>;
 /// ```
-pub struct ActionNode<A, O, R, S> {
+pub struct ActionNode<A, O, R, I, S> {
     pub args: A,
     pub output: O,
     pub result: R,
+    pub input: I,
     pub state: S,
 }
 
-impl<A: Message + Default, O: Default, R: Default, S: Default> ActionNode<A, O, R, S> {
+impl<A: Message + Default, O: Default, R: Default, I: Default, S: Default> ActionNode<A, O, R, I, S> {
     /// Decode args from serialized protobuf, default everything else.
     pub fn from_bytes(bytes: &[u8]) -> Self {
         Self {
             args: A::decode(bytes).unwrap_or_default(),
             output: O::default(),
             result: R::default(),
+            input: I::default(),
             state: S::default(),
         }
     }
@@ -100,7 +102,7 @@ pub trait Behavior {
         }
     }
 
-    fn on_command(&mut self, _cmd: &[u8]) {}
+    fn on_input(&mut self) {}
 }
 
 // ── NodeBehavior (raw bytes, used by renderer) ──────────────────
@@ -115,18 +117,20 @@ pub trait NodeBehavior {
     fn on_child_complete(&mut self, child_index: usize, child_count: usize, result: ChildResult) -> NodeResponse;
     fn output_bytes(&self) -> Vec<u8>;
     fn result_bytes(&self) -> Vec<u8>;
+    fn input_bytes(&self) -> Vec<u8>;
+    fn set_input_bytes(&mut self, bytes: &[u8]);
     fn state_bytes(&self) -> Vec<u8>;
-    fn on_command(&mut self, cmd: &[u8]);
 }
 
 /// Blanket impl: ActionNode<A,O,R,S> where Behavior is implemented
 /// automatically becomes a NodeBehavior. Encoding + data accessors
 /// are handled here -- zero boilerplate in node code.
-impl<A, O, R, S> NodeBehavior for ActionNode<A, O, R, S>
+impl<A, O, R, I, S> NodeBehavior for ActionNode<A, O, R, I, S>
 where
     A: 'static,
     O: Message + Clone + Default + 'static,
     R: Message + Clone + Default + 'static,
+    I: Message + Clone + Default + 'static,
     S: Message + Clone + Default + 'static,
     Self: Behavior,
 {
@@ -145,10 +149,16 @@ where
     fn result_bytes(&self) -> Vec<u8> {
         self.result.encode_to_vec()
     }
+    fn input_bytes(&self) -> Vec<u8> {
+        self.input.encode_to_vec()
+    }
+    fn set_input_bytes(&mut self, bytes: &[u8]) {
+        if let Ok(input) = I::decode(bytes) {
+            self.input = input;
+            Behavior::on_input(self);
+        }
+    }
     fn state_bytes(&self) -> Vec<u8> {
         self.state.encode_to_vec()
-    }
-    fn on_command(&mut self, cmd: &[u8]) {
-        Behavior::on_command(self, cmd)
     }
 }

@@ -4,7 +4,7 @@ package behave.actions;
 import "takeoff/takeoff.proto";
 import "land/land.proto";
 import "goto_waypoint/goto.proto";
-import "return_home/home.proto";
+import "home/home.proto";
 import "take_photo/photo.proto";
 import "sequence/sequence.proto";
 import "fallback/fallback.proto";
@@ -99,16 +99,15 @@ enum RunStatus {
     RUN_STATUS_FAILED    = 2;
 }
 
-// A single execution record for a node, matching the Rust `Run` struct.
-// This allows the entire run tree to be serialized as protobuf.
+// A single execution record for a node.
 message Run {
-    uint64    id         = 1;
-    string    tag        = 2;
+    uint64    run_id     = 1;   // unique run identifier
+    uint64    node_id    = 2;   // which ActionNode this run belongs to
     uint64    started_at = 3;   // microseconds since epoch
     uint64    ended_at   = 4;   // 0 if still running
     RunStatus status     = 5;
-    bytes     output     = 6;   // serialized ActionOutput
-    bytes     result     = 7;   // serialized ActionResult
-    bytes     state      = 8;   // serialized ActionState
+    ActionOutput output  = 6;   // real-time telemetry
+    ActionResult result  = 7;   // final data
+    ActionState  state   = 8;   // internal state
     repeated Run children = 9;
 }

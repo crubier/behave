@@ -1,0 +1,23 @@
+name: dioxus-mock
+description: >
+  Like mock, but uses the Dioxus renderer for behavior tree execution.
+  The ExampleMission is baked in -- no GCS or communicate node needed.
+
+  Data flow:
+
+    behave-dioxus -> ControlRequest -> control-mock
+           ^                              |
+           |                              v
+           |                          SimRequest
+           |                              |
+           |                              v
+    ActionIO (recv)                    sim-mock
+      - ControlResponse <---+             |
+      - ControlStatus   <---+             v
+      - SenseStatus     <---------- sense-mock
+
+nodes:
+  sense-mock:
+  control-mock:
+  sim-mock:
+  behave-dioxus:

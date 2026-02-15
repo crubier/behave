@@ -5,7 +5,7 @@ use dioxus::prelude::*;
 use crate::actions_dioxus::takeoff::Takeoff;
 use crate::actions_dioxus::land::Land;
 use crate::actions_dioxus::goto_waypoint::Goto;
-use crate::actions_dioxus::return_home::Home;
+use crate::actions_dioxus::home::Home;
 use crate::actions_dioxus::take_photo::Photo;
 use crate::actions_dioxus::sequence::Sequence;
 use crate::actions_dioxus::fallback::Fallback;

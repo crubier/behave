@@ -1,6 +1,6 @@
 //! Sequence node -- succeeds if ALL children succeed (left-to-right).
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, ChildResult, NodeResponse};
 
 pub mod proto {
@@ -23,7 +23,7 @@ pub fn Sequence(children: Element) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type SequenceNode = ActionNode<SequenceArgs, SequenceOutput, SequenceResult, SequenceState>;
+pub type SequenceNode = ActionNode<SequenceArgs, SequenceOutput, SequenceResult, SequenceInput, SequenceState>;
 
 impl Behavior for SequenceNode {
     fn on_activate(&mut self, _io: &ActionIO) -> NodeResponse {

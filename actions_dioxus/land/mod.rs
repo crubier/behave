@@ -3,7 +3,7 @@
 use log::info;
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
 use crate::actions_dioxus::core::data::ProtoBytes;
 
@@ -30,7 +30,7 @@ pub fn Land(descent_speed_ms: f64) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type LandNode = ActionNode<LandArgs, LandOutput, LandResult, LandState>;
+pub type LandNode = ActionNode<LandArgs, LandOutput, LandResult, LandInput, LandState>;
 
 impl Behavior for LandNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {

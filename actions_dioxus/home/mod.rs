@@ -1,9 +1,9 @@
-//! ReturnHome node -- sends return-home command and monitors mode.
+//! Home node -- sends return-home command and monitors mode.
 
 use log::info;
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
 use crate::actions_dioxus::core::data::ProtoBytes;
 use crate::topics::control::status::MODE_RETURNING;
@@ -29,9 +29,9 @@ pub fn Home(altitude_m: f64) -> Element {
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type ReturnHomeNode = ActionNode<HomeArgs, HomeOutput, HomeResult, HomeState>;
+pub type HomeNode = ActionNode<HomeArgs, HomeOutput, HomeResult, HomeInput, HomeState>;
 
-impl Behavior for ReturnHomeNode {
+impl Behavior for HomeNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {
         info!("[home] start: alt={:.1}m", self.args.altitude_m);
         let _ = crate::controls::send_return_home(io.cmd, self.args.altitude_m);

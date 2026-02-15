@@ -72,6 +72,14 @@ path = "robot/nodes/communicate/main.rs"
 name = "node-gcs-mock"
 path = "robot/nodes/gcs_mock/main.rs"
 
+[[bin]]
+name = "node-behave-dioxus"
+path = "robot/nodes/behave_dioxus/main.rs"
+
+[[bin]]
+name = "run-example-mission"
+path = "actions_dioxus/run_example.rs"
+
 # ── Runmodes ────────────────────────────────────────────────────
 
 [[bin]]

@@ -88,7 +88,7 @@ pub mod parallel;
 pub mod takeoff;
 pub mod land;
 pub mod goto_waypoint;
-pub mod return_home;
+pub mod home;
 pub mod take_photo;
 /// Top-level composed protobuf types: `ActionArgs`, `ActionResult`,
 /// `ActionOutput`, `ActionInput`, `ActionState`, `ActionNode`, and `Run`.
@@ -106,3 +106,6 @@ pub mod example_mission;
 /// use behave::actions_dioxus::elements as dioxus_elements;
 /// ```
 pub use self::core::elements;
+
+// Re-export ActionIO so robot nodes can import everything from actions_dioxus.
+pub use crate::actions::io::ActionIO;

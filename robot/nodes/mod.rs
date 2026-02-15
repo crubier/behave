@@ -7,5 +7,6 @@ pub mod control_irl;
 pub mod sim_mock;
 pub mod sim_metaverse;
 pub mod behave;
+pub mod behave_dioxus;
 pub mod communicate;
 pub mod gcs_mock;

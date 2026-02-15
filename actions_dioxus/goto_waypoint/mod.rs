@@ -3,7 +3,7 @@
 use log::info;
 use prost::Message;
 
-use crate::actions::io::ActionIO;
+use crate::actions_dioxus::ActionIO;
 use crate::actions_dioxus::core::behavior::{ActionNode, Behavior, NodeResponse};
 use crate::actions_dioxus::core::data::ProtoBytes;
 
@@ -30,7 +30,7 @@ pub fn Goto(easting_m: f64, northing_m: f64, altitude_m: f64, speed_ms: f64) -> 
 
 // ── Node ────────────────────────────────────────────────────────
 
-pub type GotoWaypointNode = ActionNode<GotoArgs, GotoOutput, GotoResult, GotoState>;
+pub type GotoWaypointNode = ActionNode<GotoArgs, GotoOutput, GotoResult, GotoInput, GotoState>;
 
 impl Behavior for GotoWaypointNode {
     fn on_activate(&mut self, io: &ActionIO) -> NodeResponse {
