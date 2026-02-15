@@ -4,6 +4,7 @@
 //! linearly interpolating position and quaternion at fixed linear and
 //! angular speeds, and publishes SimStatus at 60 Hz.
 
+use std::net::UdpSocket;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -12,6 +13,23 @@ use log::{info, warn};
 
 use behave::schema::sim_request_capnp::sim_request;
 use behave::topics;
+
+/// UDP port for sending pose to UE5.
+const UE5_UDP_PORT: u16 = 9876;
+
+/// Flat pose packet sent over UDP to UE5 (64 bytes, little-endian).
+/// Must match the C++ struct in SimCameraPawn.cpp exactly.
+#[repr(C, packed)]
+struct UdpPosePacket {
+    x: f64,
+    y: f64,
+    z: f64,
+    qw: f64,
+    qx: f64,
+    qy: f64,
+    qz: f64,
+    utime: u64,
+}
 
 const TICK_HZ: u64 = 60;
 const TICK_DT: f64 = 1.0 / TICK_HZ as f64;
@@ -89,6 +107,11 @@ pub fn run() -> Result<()> {
     let status_pub = topics::sim::status::publish(&node)?;
     info!("publishing {}", topics::sim::status::NAME);
 
+    // UDP socket for sending pose to UE5
+    let udp = UdpSocket::bind("0.0.0.0:0")?;
+    let ue5_addr = format!("127.0.0.1:{UE5_UDP_PORT}");
+    info!("sending UDP pose to {ue5_addr}");
+
     let mut current = Pose::origin();
     let mut target = Pose::origin();
 
@@ -135,6 +158,27 @@ pub fn run() -> Result<()> {
                 pose.set_qz(current.qz);
             }
             topics::sim::status::send(&status_pub, &msg)?;
+        }
+
+        // Send pose to UE5 over UDP
+        {
+            let pkt = UdpPosePacket {
+                x: current.x,
+                y: current.y,
+                z: current.z,
+                qw: current.qw,
+                qx: current.qx,
+                qy: current.qy,
+                qz: current.qz,
+                utime: now_us(),
+            };
+            let bytes: &[u8] = unsafe {
+                std::slice::from_raw_parts(
+                    &pkt as *const UdpPosePacket as *const u8,
+                    std::mem::size_of::<UdpPosePacket>(),
+                )
+            };
+            let _ = udp.send_to(bytes, &ue5_addr);
         }
 
         // Sleep for remainder of tick

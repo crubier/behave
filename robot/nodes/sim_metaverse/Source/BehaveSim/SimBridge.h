@@ -1,12 +1,12 @@
 #pragma once
 
-// C FFI declarations for the sim_bridge Rust library.
-// The library subscribes to the iceoryx2 "behave/SimStatus" service
-// and provides the latest camera pose to UE5.
+// Flat pose packet received over UDP from sim_metaverse (64 bytes, little-endian).
+// Must match the Rust UdpPosePacket struct exactly.
 
 #include "CoreMinimal.h"
 
-struct FSimStatus
+#pragma pack(push, 1)
+struct FSimPosePacket
 {
 	double X;   // meters
 	double Y;   // meters
@@ -15,17 +15,8 @@ struct FSimStatus
 	double QX;
 	double QY;
 	double QZ;
-	uint64 Utime;
+	uint64 Utime;  // microseconds
 };
+#pragma pack(pop)
 
-extern "C"
-{
-	/** Start the background iceoryx2 subscriber thread. */
-	bool sim_bridge_init();
-
-	/** Copy the latest pose into OutStatus if new data arrived. Returns true when written. */
-	bool sim_bridge_poll_pose(FSimStatus* OutStatus);
-
-	/** Stop the subscriber thread. */
-	void sim_bridge_cleanup();
-}
+static_assert(sizeof(FSimPosePacket) == 64, "FSimPosePacket must be 64 bytes");

@@ -1,6 +1,10 @@
 #include "SimCameraPawn.h"
 #include "SimBridge.h"
 #include "Camera/CameraComponent.h"
+#include "Networking.h"
+#include "SocketSubsystem.h"
+
+static constexpr int32 UDP_PORT = 9876;
 
 ASimCameraPawn::ASimCameraPawn()
 {
@@ -16,14 +20,29 @@ void ASimCameraPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	bBridgeInitialized = sim_bridge_init();
-	if (bBridgeInitialized)
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	if (!SocketSub)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] sim_bridge initialised"));
+		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] No socket subsystem"));
+		return;
+	}
+
+	UdpSocket = FUdpSocketBuilder(TEXT("SimMetaverseSocket"))
+		.AsNonBlocking()
+		.AsReusable()
+		.BoundToAddress(FIPv4Address::Any)
+		.BoundToPort(UDP_PORT)
+		.Build();
+
+	if (UdpSocket)
+	{
+		int32 BufferSize = 65536;
+		UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
+		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] UDP socket listening on port %d"), UDP_PORT);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] sim_bridge init FAILED"));
+		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] Failed to bind UDP socket on port %d"), UDP_PORT);
 	}
 }
 
@@ -31,22 +50,39 @@ void ASimCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!bBridgeInitialized)
+	if (!UdpSocket)
 	{
 		return;
 	}
 
-	FSimStatus Pose;
-	if (sim_bridge_poll_pose(&Pose))
+	// Drain all pending UDP packets, keep the latest pose
+	FSimPosePacket Pkt;
+	bool bGotPose = false;
+
+	uint32 PendingSize = 0;
+	while (UdpSocket->HasPendingData(PendingSize))
+	{
+		uint8 Buffer[128];
+		int32 BytesRead = 0;
+		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+
+		if (UdpSocket->RecvFrom(Buffer, sizeof(Buffer), BytesRead, *Sender))
+		{
+			if (BytesRead == sizeof(FSimPosePacket))
+			{
+				FMemory::Memcpy(&Pkt, Buffer, sizeof(FSimPosePacket));
+				bGotPose = true;
+			}
+		}
+	}
+
+	if (bGotPose)
 	{
 		// Schema uses meters; UE5 uses centimetres.
-		const FVector Location(
-			Pose.X * 100.0,
-			Pose.Y * 100.0,
-			Pose.Z * 100.0);
+		const FVector Location(Pkt.X * 100.0, Pkt.Y * 100.0, Pkt.Z * 100.0);
 
 		// Quaternion order: UE5 FQuat(X, Y, Z, W)
-		const FQuat Rotation(Pose.QX, Pose.QY, Pose.QZ, Pose.QW);
+		const FQuat Rotation(Pkt.QX, Pkt.QY, Pkt.QZ, Pkt.QW);
 
 		SetActorLocationAndRotation(Location, Rotation.IsNormalized() ? Rotation : FQuat::Identity);
 	}
@@ -54,11 +90,12 @@ void ASimCameraPawn::Tick(float DeltaTime)
 
 void ASimCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (bBridgeInitialized)
+	if (UdpSocket)
 	{
-		sim_bridge_cleanup();
-		bBridgeInitialized = false;
-		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] sim_bridge cleaned up"));
+		UdpSocket->Close();
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(UdpSocket);
+		UdpSocket = nullptr;
+		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] UDP socket closed"));
 	}
 
 	Super::EndPlay(EndPlayReason);

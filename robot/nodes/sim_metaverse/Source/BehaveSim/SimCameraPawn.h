@@ -4,11 +4,13 @@
 #include "GameFramework/Pawn.h"
 #include "SimCameraPawn.generated.h"
 
+struct FSimPosePacket;
+
 /**
- * Camera pawn driven by iceoryx2 pose commands.
+ * Camera pawn driven by UDP pose packets from sim_metaverse.
  *
- * Every tick the pawn polls the sim_bridge for a new camera pose and
- * teleports itself (and its camera) to that location/orientation.
+ * Listens on UDP port 9876 for 64-byte FSimPosePacket structs
+ * and teleports the camera to the received pose each frame.
  */
 UCLASS()
 class BEHAVESIM_API ASimCameraPawn : public APawn
@@ -26,5 +28,5 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	class UCameraComponent* CameraComp;
 
-	bool bBridgeInitialized = false;
+	class FSocket* UdpSocket = nullptr;
 };

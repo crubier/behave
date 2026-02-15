@@ -2,55 +2,54 @@
 
 UE5 metaverse camera simulator. Subscribes to `behave/SimRequest`, simulates simple physics by linearly interpolating position and quaternion at fixed speeds, and publishes `behave/SimStatus` at 60 Hz.
 
-Also contains the BehaveSim UE5 project and the `sim_bridge` Rust library that bridges iceoryx2 poses to UE5.
+Also sends the current pose to UE5 over UDP (port 9876) as a flat 64-byte packet each tick. UE5 receives it directly with a `FUdpSocketReceiver` -- no Rust bridge needed.
 
 ## Components
 
-- **mod.rs / main.rs** -- iceoryx2 sim node (physics interpolation at 60 Hz)
-- **BehaveSim.uproject** -- UE5 project with a camera pawn driven by iceoryx2
-- **Source/** -- UE5 C++ source (SimCameraPawn, SimBridge FFI)
-- **sim_bridge/** -- Rust cdylib loaded by UE5, subscribes to `behave/SimStatus` and provides camera poses via C FFI
+- **mod.rs / main.rs** -- iceoryx2 sim node (physics interpolation at 60 Hz + UDP sender)
+- **BehaveSim.uproject** -- UE5 project with a camera pawn driven by UDP
+- **Source/** -- UE5 C++ source (SimCameraPawn receives UDP, applies pose)
 
 ## Usage
 
 ```bash
-# 1. Build the sim_bridge Rust library
-cd sim_bridge && cargo build --release
-
-# 2. Launch UE5
+# 1. Launch UE5
 open -a "UnrealEditor" BehaveSim.uproject
 
-# 3. Press Play in UE5, then run the robot stack:
+# 2. Press Play in UE5, then run the robot stack:
 cargo run --bin runmode -- robot/modes/metaverse.yaml
 ```
 
+No separate bridge build step needed -- the sim_metaverse node sends UDP directly.
+
+## UDP Protocol
+
+Port `9876`, localhost. 64-byte little-endian packet:
+
+| Offset | Type   | Field  |
+|--------|--------|--------|
+| 0      | f64    | x      |
+| 8      | f64    | y      |
+| 16     | f64    | z      |
+| 24     | f64    | qw     |
+| 32     | f64    | qx     |
+| 40     | f64    | qy     |
+| 48     | f64    | qz     |
+| 56     | u64    | utime  |
+
+Position is in meters, orientation is a unit quaternion, utime is microseconds since epoch.
+
 ## Troubleshooting: UE5 module load failure
 
-If UE5 shows **"The game module 'BehaveSim' could not be loaded"**, the compiled module binaries are stale or incompatible. Clean and rebuild:
+If UE5 shows "The game module 'BehaveSim' could not be loaded", clean and reopen:
 
 ```bash
-# From this directory (robot/nodes/sim_metaverse/):
-
-# 1. Remove all UE5 generated/cached directories
 rm -rf Binaries/ DerivedDataCache/ Intermediate/ Saved/
-
-# 2. Clean the sim_bridge Rust build
-cd sim_bridge && cargo clean && cd ..
-
-# 3. Rebuild the sim_bridge
-cd sim_bridge && cargo build --release && cd ..
-
-# 4. Regenerate UE5 project files (macOS)
-/Users/Shared/Epic\ Games/UE_5.*/Engine/Build/BatchFiles/Mac/GenerateProjectFiles.sh \
-    "$(pwd)/BehaveSim.uproject" -game
-
-# 5. Reopen in UE5
 open -a "UnrealEditor" BehaveSim.uproject
 ```
-
-If step 4 fails (path depends on your UE5 install), you can also just open the `.uproject` directly -- UE5 will rebuild the module on first launch.
 
 ## Topics
 
 - Subscribes to: `behave/SimRequest`
 - Publishes to: `behave/SimStatus`
+- Sends UDP to: `127.0.0.1:9876` (UE5)
