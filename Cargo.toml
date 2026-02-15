@@ -24,19 +24,19 @@ path = "robot/main.rs"
 
 [[bin]]
 name = "node-sense"
-path = "robot/bin/sense.rs"
+path = "robot/nodes/sense/main.rs"
 
 [[bin]]
 name = "node-control"
-path = "robot/bin/control.rs"
+path = "robot/nodes/control/main.rs"
 
 [[bin]]
 name = "node-behave"
-path = "robot/bin/behave.rs"
+path = "robot/nodes/behave/main.rs"
 
 [[bin]]
 name = "node-communicate"
-path = "robot/bin/communicate.rs"
+path = "robot/nodes/communicate/main.rs"
 
 [[bin]]
 name = "mock-gcs"

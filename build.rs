@@ -1,20 +1,33 @@
 fn main() {
     let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    // ── Messages + Controls + Mission ───────────────────────────
-    // All top-level schemas share the same parent module `schema`.
-    // mission.capnp imports from actions/, so we add the project
-    // root as an import path for capnpc to resolve cross-references.
+    // ── Schemas in schemas/ ─────────────────────────────────────
     capnpc::CompilerCommand::new()
         .src_prefix("schemas")
         .default_parent_module(vec!["schema".into()])
-        .import_path(&root)
         .file("schemas/messages.capnp")
-        .file("schemas/controls.capnp")
-        .file("schemas/mission.capnp")
         .file("schemas/sim.capnp")
         .run()
         .expect("failed to compile schemas");
+
+    // ── Control node schema (colocated) ─────────────────────────
+    capnpc::CompilerCommand::new()
+        .src_prefix("robot/nodes/control")
+        .default_parent_module(vec!["schema".into()])
+        .file("robot/nodes/control/controls.capnp")
+        .run()
+        .expect("failed to compile controls schema");
+
+    // ── Communicate node schema (colocated) ─────────────────────
+    // mission.capnp imports /actions/action.capnp, so we need the
+    // project root as an import path.
+    capnpc::CompilerCommand::new()
+        .src_prefix("robot/nodes/communicate")
+        .default_parent_module(vec!["schema".into()])
+        .import_path(&root)
+        .file("robot/nodes/communicate/mission.capnp")
+        .run()
+        .expect("failed to compile mission schema");
 
     // ── Actions ─────────────────────────────────────────────────
     // capnpc-rust derives Rust module names from default_parent_module

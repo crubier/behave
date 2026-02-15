@@ -24,6 +24,8 @@ pub struct Greeting {
     pub text: GreetingText,
 }
 
+pub mod action;
+pub mod controls;
 pub mod ipc;
 pub mod logging;
 

@@ -1,0 +1,47 @@
+---
+description: Core architecture principles for the behave project
+globs:
+  - "**/*.rs"
+  - "**/*.capnp"
+---
+
+# Architecture principles
+
+## Separation of concerns: behave.rs vs actions/
+
+- `robot/nodes/behave.rs` MUST be fully action-agnostic. It should only know about a single top-level `ActionNode` type and call `start/tick/suspend/resume` on it. It must NOT contain match arms for individual action types, build trees, or define action-specific enums.
+
+- All action-specific types, state machines, and tree-building logic belong in `actions/`. The `ActionNode` enum (which holds runtime state for any action variant) should be defined in `actions/mod.rs`, not in `behave.rs`.
+
+- Composite actions (Sequence, Fallback) are responsible for managing their own children. They call `start()` on child nodes when they first tick them, not the tree builder. The tree builder should only construct the args tree; `start()` is called lazily by the parent composite.
+
+## Action trait contract
+
+Each action implements the `Action` trait (`src/action.rs`) with:
+- `start(args, cmd)` -> State: initialize from args, may send initial commands
+- `tick(state, input, cmd)` -> Tick<Output, Result>: advance one step
+- `suspend(state)` -> (State, Option<Result>): snapshot for later resumption
+- `resume(state, args, cmd)` -> State: restore from snapshot
+
+## Colocation
+
+### Actions
+
+Each action type lives in `actions/<type>/` with colocated:
+- `<type>.capnp` -- schema (5 structs: *Args, *Result, *State, *Input, *Output)
+- `mod.rs` -- Rust runtime behavior (start/tick functions using capnp builders)
+- `index.tsx` -- React UI component
+
+### Nodes
+
+Each robot node lives in `robot/nodes/<node>/` with colocated:
+- `mod.rs` -- node runtime logic (iceoryx2 setup, main loop)
+- `main.rs` -- binary entry point
+- `*.capnp` -- node-specific schemas (e.g., `controls.capnp` for Control, `mission.capnp` for Communicate)
+
+Shared library code that nodes expose to other parts of the system (e.g., `CmdPublisher` trait, `send_*` helpers) stays in `src/` since it's part of the `behave` library crate used by actions and other nodes.
+
+## IPC
+
+- All inter-node communication uses Cap'n Proto serialized into `behave::ipc::IpcMessage<N>` envelopes over iceoryx2 pub/sub.
+- The `IpcMessage` type MUST live in the library crate (`src/ipc.rs`) so all binaries share the same fully-qualified type name for iceoryx2 cross-process type checking.
