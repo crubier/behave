@@ -5,7 +5,7 @@ Unreal Engine 5 simulator node. Contains the BehaveSim UE5 project and the `sim_
 ## Components
 
 - **BehaveSim.uproject** -- UE5 project with a camera pawn driven by iceoryx2
-- **sim_bridge/** -- Rust cdylib loaded by UE5, subscribes to `behave/SimPose` and provides camera poses via C FFI
+- **sim_bridge/** -- Rust cdylib loaded by UE5, subscribes to `behave/SimRequest` and provides camera poses via C FFI
 - **sim.capnp** -- moved to `robot/topics/sim.capnp`
 
 ## Usage
@@ -23,4 +23,4 @@ cargo run --release --bin send_pose
 
 ## Topic
 
-- Subscribes to: `behave/SimPose`
+- Subscribes to: `behave/SimRequest`

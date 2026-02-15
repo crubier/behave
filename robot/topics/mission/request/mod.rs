@@ -1,12 +1,12 @@
-//! Topic: behave/ControlRequest
+//! Topic: behave/Mission
 //!
-//! Flight commands from Behave -> Control.
-//! Schema: control_request.capnp (colocated)
+//! Mission specs from Communicate -> Behave.
+//! Schema: mission.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/ControlRequest";
-pub const BUF: usize = 4096;
+pub const NAME: &str = "behave/Mission";
+pub const BUF: usize = 65536;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
     crate::topics::create_publisher::<BUF>(node, NAME)

@@ -1,6 +1,6 @@
 @0x8d1079e8989b5915;
 
-# ── Drone State Telemetry ───────────────────────────────────────
+# ── Control Status Telemetry ───────────────────────────────────
 #
 # Published by Control for all nodes to consume.
 
@@ -13,7 +13,7 @@ enum FlightMode {
   returning @5;
 }
 
-struct DroneState {
+struct ControlStatus {
   latitudeDeg  @0 :Float64;
   longitudeDeg @1 :Float64;
   altitudeM    @2 :Float64;

@@ -1,4 +1,4 @@
-//! Test utility: publishes camera poses on the `behave/SimPose` service.
+//! Test utility: publishes camera poses on the `behave/SimRequest` service.
 //!
 //! Usage:  cargo run --bin send_pose
 //!
@@ -19,13 +19,13 @@ fn main() -> anyhow::Result<()> {
         .create::<iceoryx2::prelude::ipc::Service>()?;
 
     let service = node
-        .service_builder(&"behave/SimPose".try_into()?)
+        .service_builder(&"behave/SimRequest".try_into()?)
         .publish_subscribe::<IpcPoseMessage>()
         .open_or_create()?;
 
     let publisher = service.publisher_builder().create()?;
 
-    eprintln!("[send_pose] publishing on behave/SimPose  (Ctrl-C to stop)");
+    eprintln!("[send_pose] publishing on behave/SimRequest  (Ctrl-C to stop)");
 
     let start = Instant::now();
     let period = std::time::Duration::from_millis(50); // 20 Hz

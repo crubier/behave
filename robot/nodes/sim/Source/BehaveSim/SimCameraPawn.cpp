@@ -36,7 +36,7 @@ void ASimCameraPawn::Tick(float DeltaTime)
 		return;
 	}
 
-	FSimPose Pose;
+	FSimRequest Pose;
 	if (sim_bridge_poll_pose(&Pose))
 	{
 		// Schema uses meters; UE5 uses centimetres.

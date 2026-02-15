@@ -1,5 +1,5 @@
 # Topic: Control Status
 
-Drone telemetry published by Control for all nodes. Topic name: `behave/DroneState`.
+Drone telemetry published by Control for all nodes. Topic name: `behave/ControlStatus`.
 
-Schema: `drone_state.capnp`
+Schema: `control_status.capnp`

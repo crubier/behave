@@ -1,11 +1,11 @@
-//! Topic: behave/DroneState
+//! Topic: behave/ControlStatus
 //!
 //! Telemetry from Control -> all nodes.
-//! Schema: drone_state.capnp (colocated)
+//! Schema: control_status.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/DroneState";
+pub const NAME: &str = "behave/ControlStatus";
 pub const BUF: usize = 4096;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {

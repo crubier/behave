@@ -1,6 +1,6 @@
 //! C FFI bridge: iceoryx2 camera-pose subscriber for UE5.
 //!
-//! A background thread subscribes to the `"behave/SimPose"` iceoryx2 service
+//! A background thread subscribes to the `"behave/SimRequest"` iceoryx2 service
 //! and stores the latest [`CameraPose`] Cap'n Proto message. The UE5 game
 //! thread polls via the exported C functions.
 
@@ -113,13 +113,13 @@ fn bridge_loop() -> anyhow::Result<()> {
         .create::<iceoryx2::prelude::ipc::Service>()?;
 
     let service = node
-        .service_builder(&"behave/SimPose".try_into()?)
+        .service_builder(&"behave/SimRequest".try_into()?)
         .publish_subscribe::<IpcPoseMessage>()
         .open_or_create()?;
 
     let subscriber = service.subscriber_builder().create()?;
 
-    eprintln!("[sim_bridge] subscriber ready on behave/SimPose");
+    eprintln!("[sim_bridge] subscriber ready on behave/SimRequest");
 
     while RUNNING.load(Ordering::SeqCst) {
         while let Some(sample) = subscriber.receive()? {

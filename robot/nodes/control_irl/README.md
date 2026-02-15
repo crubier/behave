@@ -6,5 +6,5 @@ Currently a stub awaiting hardware integration.
 
 ## Topics
 
-- Subscribes to: `behave/ControlCommand`
-- Publishes to: `behave/ControlAck`, `behave/DroneState`
+- Subscribes to: `behave/ControlRequest`
+- Publishes to: `behave/ControlResponse`, `behave/ControlStatus`

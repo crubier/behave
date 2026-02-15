@@ -1,7 +1,7 @@
 //! Control node -- drone flight controller interface.
 //!
-//! Subscribes to ControlCommand and executes each command (stubbed).
-//! Publishes ControlAck and DroneState telemetry.
+//! Subscribes to ControlRequest and executes each command (stubbed).
+//! Publishes ControlResponse and ControlStatus telemetry.
 
 use std::time::Duration;
 
@@ -9,8 +9,8 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::schema::control_command_capnp::control_command;
-use behave::schema::drone_state_capnp::FlightMode;
+use behave::schema::control_request_capnp::control_request;
+use behave::schema::control_status_capnp::FlightMode;
 use behave::topics;
 
 pub fn run() -> Result<()> {
@@ -37,47 +37,47 @@ pub fn run() -> Result<()> {
     info!("ready -- waiting for commands");
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        while let Some(typed) = topics::receive::<{ topics::control::request::BUF }, control_command::Owned>(&cmd_sub)? {
+        while let Some(typed) = topics::receive::<{ topics::control::request::BUF }, control_request::Owned>(&cmd_sub)? {
             let cmd = typed.get()?;
             let cmd_id = cmd.get_id();
 
             match cmd.which()? {
-                control_command::Arm(()) => {
+                control_request::Arm(()) => {
                     info!("cmd #{cmd_id}: ARM");
                     armed = true;
                     mode = FlightMode::Idle;
                 }
-                control_command::Disarm(()) => {
+                control_request::Disarm(()) => {
                     info!("cmd #{cmd_id}: DISARM");
                     armed = false;
                     mode = FlightMode::Idle;
                 }
-                control_command::Takeoff(r) => {
+                control_request::Takeoff(r) => {
                     let r = r?;
                     let target_alt = r.get_altitude_m();
                     info!("cmd #{cmd_id}: TAKEOFF to {target_alt:.1} m");
                     alt = target_alt;
                     mode = FlightMode::TakingOff;
                 }
-                control_command::Land(r) => {
+                control_request::Land(r) => {
                     let r = r?;
                     let spd = r.get_descent_speed_ms();
                     info!("cmd #{cmd_id}: LAND at {spd:.1} m/s descent");
                     alt = 0.0;
                     mode = FlightMode::Landing;
                 }
-                control_command::Hover(()) => {
+                control_request::Hover(()) => {
                     info!("cmd #{cmd_id}: HOVER");
                     mode = FlightMode::Hovering;
                 }
-                control_command::ReturnHome(r) => {
+                control_request::ReturnHome(r) => {
                     let r = r?;
                     let rth_alt = r.get_altitude_m();
                     info!("cmd #{cmd_id}: RETURN HOME at {rth_alt:.1} m");
                     alt = rth_alt;
                     mode = FlightMode::Returning;
                 }
-                control_command::Goto(r) => {
+                control_request::Goto(r) => {
                     let r = r?;
                     let t_lat = r.get_latitude_deg();
                     let t_lon = r.get_longitude_deg();
@@ -89,7 +89,7 @@ pub fn run() -> Result<()> {
                     alt = t_alt;
                     mode = FlightMode::Flying;
                 }
-                control_command::TriggerCamera(r) => {
+                control_request::TriggerCamera(r) => {
                     let r = r?;
                     let tag = r.get_tag()?.to_str()?;
                     info!("cmd #{cmd_id}: CAMERA TRIGGER tag=\"{tag}\"");
@@ -102,7 +102,7 @@ pub fn run() -> Result<()> {
             {
                 let mut msg = capnp::message::Builder::new_default();
                 {
-                    let mut ack = msg.init_root::<behave::schema::control_ack_capnp::control_ack::Builder<'_>>();
+                    let mut ack = msg.init_root::<behave::schema::control_response_capnp::control_response::Builder<'_>>();
                     ack.set_command_id(cmd_id);
                     ack.set_success(true);
                     ack.set_message("ok".into());
@@ -115,7 +115,7 @@ pub fn run() -> Result<()> {
         {
             let mut msg = capnp::message::Builder::new_default();
             {
-                let mut state = msg.init_root::<behave::schema::drone_state_capnp::drone_state::Builder<'_>>();
+                let mut state = msg.init_root::<behave::schema::control_status_capnp::control_status::Builder<'_>>();
                 state.set_latitude_deg(lat);
                 state.set_longitude_deg(lon);
                 state.set_altitude_m(alt);

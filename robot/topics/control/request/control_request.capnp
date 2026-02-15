@@ -1,10 +1,10 @@
 @0xdb4cc1c9144591bb;
 
-# ── Control Command ─────────────────────────────────────────────
+# ── Control Request ────────────────────────────────────────────
 #
 # Flight commands sent from Behave -> Control.
 
-struct ControlCommand {
+struct ControlRequest {
   id @0 :UInt64;  # Unique command identifier for ack correlation
 
   union {

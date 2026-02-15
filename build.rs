@@ -6,34 +6,33 @@ fn main() {
     // Compiled with per-folder src_prefix so module names stay
     // flat under `schema::`.
 
-    for (prefix, file) in [
-        ("robot/topics/control/request",  "robot/topics/control/request/control_command.capnp"),
-        ("robot/topics/control/response", "robot/topics/control/response/control_ack.capnp"),
-        ("robot/topics/control/status",   "robot/topics/control/status/drone_state.capnp"),
-        ("robot/topics/sim/request",      "robot/topics/sim/request/sim_pose.capnp"),
-        ("robot/topics/sim/status",       "robot/topics/sim/status/sim_status.capnp"),
-    ] {
+    for file in glob::glob("robot/topics/**/*.capnp")
+        .expect("failed to glob robot/topics/**/*.capnp")
+        .filter_map(|e| e.ok())
+    {
+        let prefix = file.parent().expect("capnp file has no parent dir");
         capnpc::CompilerCommand::new()
             .src_prefix(prefix)
             .default_parent_module(vec!["schema".into()])
             .import_path(&root)
-            .file(file)
+            .file(&file)
             .run()
-            .unwrap_or_else(|e| panic!("failed to compile {file}: {e}"));
+            .unwrap_or_else(|e| panic!("failed to compile {}: {e}", file.display()));
     }
 
     // ── Actions ─────────────────────────────────────────────────
-    capnpc::CompilerCommand::new()
-        .src_prefix("actions")
-        .default_parent_module(vec!["schema".into(), "actions".into()])
-        .file("actions/action.capnp")
-        .file("actions/sequence/sequence.capnp")
-        .file("actions/fallback/fallback.capnp")
-        .file("actions/takeoff/takeoff.capnp")
-        .file("actions/goto_waypoint/goto_waypoint.capnp")
-        .file("actions/return_home/return_home.capnp")
-        .file("actions/land/land.capnp")
-        .file("actions/take_photo/take_photo.capnp")
-        .run()
+    // Auto-discover all .capnp files under actions/
+    let action_schemas: Vec<_> = glob::glob("actions/**/*.capnp")
+        .expect("failed to glob actions/**/*.capnp")
+        .filter_map(|e| e.ok())
+        .collect();
+
+    let mut cmd = capnpc::CompilerCommand::new();
+    cmd.src_prefix("actions")
+        .default_parent_module(vec!["schema".into(), "actions".into()]);
+    for path in &action_schemas {
+        cmd.file(path);
+    }
+    cmd.run()
         .expect("failed to compile action schemas");
 }

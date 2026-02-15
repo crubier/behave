@@ -18,6 +18,7 @@ tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 capnpc = "0.18"
+glob = "0.3"
 
 # ── Node binaries ───────────────────────────────────────────────
 

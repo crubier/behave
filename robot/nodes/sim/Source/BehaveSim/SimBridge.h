@@ -1,12 +1,12 @@
 #pragma once
 
 // C FFI declarations for the sim_bridge Rust library.
-// The library subscribes to the iceoryx2 "behave/SimPose" service
+// The library subscribes to the iceoryx2 "behave/SimRequest" service
 // and provides the latest camera pose to UE5.
 
 #include "CoreMinimal.h"
 
-struct FSimPose
+struct FSimRequest
 {
 	double X;   // meters
 	double Y;   // meters
@@ -24,7 +24,7 @@ extern "C"
 	bool sim_bridge_init();
 
 	/** Copy the latest pose into OutPose if new data arrived. Returns true when written. */
-	bool sim_bridge_poll_pose(FSimPose* OutPose);
+	bool sim_bridge_poll_pose(FSimRequest* OutPose);
 
 	/** Stop the subscriber thread. */
 	void sim_bridge_cleanup();

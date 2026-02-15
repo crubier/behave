@@ -31,17 +31,17 @@ pub mod schema {
     pub use self::actions::action_capnp;
 
     // ── Topic schemas (split per-topic) ────────────────────────
-    pub mod control_command_capnp {
-        include!(concat!(env!("OUT_DIR"), "/control_command_capnp.rs"));
+    pub mod control_request_capnp {
+        include!(concat!(env!("OUT_DIR"), "/control_request_capnp.rs"));
     }
-    pub mod control_ack_capnp {
-        include!(concat!(env!("OUT_DIR"), "/control_ack_capnp.rs"));
+    pub mod control_response_capnp {
+        include!(concat!(env!("OUT_DIR"), "/control_response_capnp.rs"));
     }
-    pub mod drone_state_capnp {
-        include!(concat!(env!("OUT_DIR"), "/drone_state_capnp.rs"));
+    pub mod control_status_capnp {
+        include!(concat!(env!("OUT_DIR"), "/control_status_capnp.rs"));
     }
-    pub mod sim_pose_capnp {
-        include!(concat!(env!("OUT_DIR"), "/sim_pose_capnp.rs"));
+    pub mod sim_request_capnp {
+        include!(concat!(env!("OUT_DIR"), "/sim_request_capnp.rs"));
     }
     pub mod sim_status_capnp {
         include!(concat!(env!("OUT_DIR"), "/sim_status_capnp.rs"));

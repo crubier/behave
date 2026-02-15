@@ -2,7 +2,7 @@
 
 Leaf action that flies the vehicle to a specific WGS-84 coordinate at a given altitude and speed.
 
-Sends a goto ControlCommand, then simulates reducing remaining distance by 200m per tick.
+Sends a goto ControlRequest, then simulates reducing remaining distance by 200m per tick.
 
 ## Args
 

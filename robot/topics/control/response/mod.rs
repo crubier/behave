@@ -1,11 +1,11 @@
-//! Topic: behave/ControlAck
+//! Topic: behave/ControlResponse
 //!
 //! Acknowledgments from Control -> Behave.
-//! Schema: control_ack.capnp (colocated)
+//! Schema: control_response.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/ControlAck";
+pub const NAME: &str = "behave/ControlResponse";
 pub const BUF: usize = 4096;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {

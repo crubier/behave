@@ -2,7 +2,7 @@
 
 Leaf action that triggers a camera capture, optionally tagged with a label.
 
-Sends a camera-trigger ControlCommand and completes in a single tick.
+Sends a camera-trigger ControlRequest and completes in a single tick.
 
 ## Args
 

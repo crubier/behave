@@ -7,4 +7,4 @@ Fully action-agnostic -- delegates all action-specific logic to the `actions/` m
 ## Topics
 
 - Subscribes to: `behave/Mission`
-- Publishes to: `behave/ControlCommand`
+- Publishes to: `behave/ControlRequest`

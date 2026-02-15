@@ -1,6 +1,6 @@
 //! Control Mock node -- dumb stub that just logs and acks every command.
 //!
-//! No state tracking, no simulation. Just receives ControlCommands,
+//! No state tracking, no simulation. Just receives ControlRequests,
 //! logs them, and immediately acks with success.
 
 use std::time::Duration;
@@ -9,7 +9,7 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::schema::control_command_capnp::control_command;
+use behave::schema::control_request_capnp::control_request;
 use behave::topics;
 
 pub fn run() -> Result<()> {
@@ -24,29 +24,29 @@ pub fn run() -> Result<()> {
     info!("ready");
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        while let Some(typed) = topics::receive::<{ topics::control::request::BUF }, control_command::Owned>(&cmd_sub)? {
+        while let Some(typed) = topics::receive::<{ topics::control::request::BUF }, control_request::Owned>(&cmd_sub)? {
             let cmd = typed.get()?;
             let cmd_id = cmd.get_id();
 
             let label = match cmd.which()? {
-                control_command::Arm(()) => "ARM".to_string(),
-                control_command::Disarm(()) => "DISARM".to_string(),
-                control_command::Takeoff(r) => format!("TAKEOFF {:.1}m", r?.get_altitude_m()),
-                control_command::Land(r) => format!("LAND {:.1}m/s", r?.get_descent_speed_ms()),
-                control_command::Hover(()) => "HOVER".to_string(),
-                control_command::ReturnHome(r) => format!("RTH {:.1}m", r?.get_altitude_m()),
-                control_command::Goto(r) => {
+                control_request::Arm(()) => "ARM".to_string(),
+                control_request::Disarm(()) => "DISARM".to_string(),
+                control_request::Takeoff(r) => format!("TAKEOFF {:.1}m", r?.get_altitude_m()),
+                control_request::Land(r) => format!("LAND {:.1}m/s", r?.get_descent_speed_ms()),
+                control_request::Hover(()) => "HOVER".to_string(),
+                control_request::ReturnHome(r) => format!("RTH {:.1}m", r?.get_altitude_m()),
+                control_request::Goto(r) => {
                     let r = r?;
                     format!("GOTO ({:.4},{:.4})", r.get_latitude_deg(), r.get_longitude_deg())
                 }
-                control_command::TriggerCamera(r) => format!("CAMERA \"{}\"", r?.get_tag()?.to_str()?),
+                control_request::TriggerCamera(r) => format!("CAMERA \"{}\"", r?.get_tag()?.to_str()?),
             };
 
             info!("cmd #{cmd_id}: {label} -> ACK ok");
 
             let mut msg = capnp::message::Builder::new_default();
             {
-                let mut ack = msg.init_root::<behave::schema::control_ack_capnp::control_ack::Builder<'_>>();
+                let mut ack = msg.init_root::<behave::schema::control_response_capnp::control_response::Builder<'_>>();
                 ack.set_command_id(cmd_id);
                 ack.set_success(true);
                 ack.set_message("ok".into());

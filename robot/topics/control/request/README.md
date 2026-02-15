@@ -1,5 +1,5 @@
 # Topic: Control Request
 
-Flight commands sent from Behave to Control. Topic name: `behave/ControlCommand`.
+Flight commands sent from Behave to Control. Topic name: `behave/ControlRequest`.
 
-Schema: `control_command.capnp`
+Schema: `control_request.capnp`

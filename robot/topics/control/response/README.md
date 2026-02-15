@@ -1,5 +1,5 @@
 # Topic: Control Response
 
-Command acknowledgments sent from Control back to Behave. Topic name: `behave/ControlAck`.
+Command acknowledgments sent from Control back to Behave. Topic name: `behave/ControlResponse`.
 
-Schema: `control_ack.capnp`
+Schema: `control_response.capnp`

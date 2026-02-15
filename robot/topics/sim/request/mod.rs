@@ -1,11 +1,11 @@
-//! Topic: behave/SimPose
+//! Topic: behave/SimRequest
 //!
 //! Camera pose commands TO the simulator.
-//! Schema: sim_pose.capnp (colocated)
+//! Schema: sim_request.capnp (colocated)
 
 use crate::topics::{IoxNode, Pub, Sub};
 
-pub const NAME: &str = "behave/SimPose";
+pub const NAME: &str = "behave/SimRequest";
 pub const BUF: usize = 256;
 
 pub fn publish(node: &IoxNode) -> anyhow::Result<Pub<BUF>> {
