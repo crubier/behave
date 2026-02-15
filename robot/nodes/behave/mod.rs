@@ -11,15 +11,12 @@ use log::{info, warn};
 
 use behave::actions::Tick;
 use behave::controls::CmdPublisher;
-use behave::ipc::{self, CmdMessage, MissionMessage};
+use behave::ipc::CmdMessage;
 use behave::schema::mission_capnp::mission;
+use behave::topics;
 
 struct Iox2CmdPublisher<'a> {
-    inner: &'a iceoryx2::port::publisher::Publisher<
-        iceoryx2::prelude::ipc::Service,
-        CmdMessage,
-        (),
-    >,
+    inner: &'a topics::Pub<{ topics::control::command::BUF }>,
 }
 
 impl<'a> CmdPublisher for Iox2CmdPublisher<'a> {
@@ -36,19 +33,11 @@ pub fn run() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let mission_service = node
-        .service_builder(&"behave/Mission".try_into()?)
-        .publish_subscribe::<MissionMessage>()
-        .open_or_create()?;
-    let mission_sub = mission_service.subscriber_builder().create()?;
-    info!("subscribed to behave/Mission");
+    let mission_sub = topics::mission::subscribe(&node)?;
+    info!("subscribed to {}", topics::mission::NAME);
 
-    let cmd_service = node
-        .service_builder(&"behave/ControlCommand".try_into()?)
-        .publish_subscribe::<CmdMessage>()
-        .open_or_create()?;
-    let cmd_pub = cmd_service.publisher_builder().create()?;
-    info!("publishing behave/ControlCommand");
+    let cmd_pub = topics::control::command::publish(&node)?;
+    info!("publishing {}", topics::control::command::NAME);
 
     let publisher = Iox2CmdPublisher { inner: &cmd_pub };
     info!("ready -- waiting for missions");
@@ -56,9 +45,7 @@ pub fn run() -> Result<()> {
     let mut active_mission: Option<(u64, behave::actions::ActionNode)> = None;
 
     while node.wait(Duration::from_millis(100)).is_ok() {
-        // Accept new missions
-        while let Some(sample) = mission_sub.receive()? {
-            let typed = ipc::unpack::<{ ipc::MISSION_BUF }, mission::Owned>(&*sample)?;
+        while let Some(typed) = topics::receive::<{ topics::mission::BUF }, mission::Owned>(&mission_sub)? {
             let m = typed.get()?;
             let mid = m.get_id();
             info!("=== mission #{mid} received ===");
@@ -68,7 +55,6 @@ pub fn run() -> Result<()> {
             info!("=== mission #{mid} ready ===");
         }
 
-        // Tick active mission
         if let Some((mid, ref mut root)) = active_mission {
             match behave::actions::tick(root, &publisher) {
                 Tick::Running(()) => {}

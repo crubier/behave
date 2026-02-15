@@ -12,6 +12,8 @@ iceoryx2 = "0.7"
 anyhow = "1"
 log = "0.4"
 env_logger = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
@@ -24,8 +26,16 @@ name = "node-sense"
 path = "robot/nodes/sense/main.rs"
 
 [[bin]]
-name = "node-control"
-path = "robot/nodes/control/main.rs"
+name = "node-control-sim"
+path = "robot/nodes/control_sim/main.rs"
+
+[[bin]]
+name = "node-control-mock"
+path = "robot/nodes/control_mock/main.rs"
+
+[[bin]]
+name = "node-control-irl"
+path = "robot/nodes/control_irl/main.rs"
 
 [[bin]]
 name = "node-behave"
@@ -38,9 +48,5 @@ path = "robot/nodes/communicate/main.rs"
 # ── Runmodes ────────────────────────────────────────────────────
 
 [[bin]]
-name = "runmode-mock"
-path = "robot/runmodes/mock/main.rs"
-
-[[bin]]
-name = "mock-gcs"
-path = "robot/runmodes/mock/mock_gcs.rs"
+name = "runmode"
+path = "robot/main.rs"

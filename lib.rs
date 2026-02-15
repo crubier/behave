@@ -16,6 +16,9 @@ pub mod ipc;
 #[path = "robot/logging.rs"]
 pub mod logging;
 
+#[path = "robot/topics/mod.rs"]
+pub mod topics;
+
 // ── Actions ────────────────────────────────────────────────────
 
 #[path = "actions/mod.rs"]

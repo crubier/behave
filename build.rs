@@ -1,30 +1,32 @@
 fn main() {
     let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    // ── Sim node schema (colocated) ────────────────────────────
-    capnpc::CompilerCommand::new()
-        .src_prefix("robot/nodes/sim")
-        .default_parent_module(vec!["schema".into()])
-        .file("robot/nodes/sim/sim.capnp")
-        .run()
-        .expect("failed to compile sim schema");
+    // ── Topic schemas ───────────────────────────────────────────
+    // Each topic folder has its own capnp schema. Compiled with
+    // separate src_prefix per folder so module names stay flat
+    // under `schema::`.
 
-    // ── Control node schema (colocated) ─────────────────────────
     capnpc::CompilerCommand::new()
-        .src_prefix("robot/nodes/control")
+        .src_prefix("robot/topics/control")
         .default_parent_module(vec!["schema".into()])
-        .file("robot/nodes/control/controls.capnp")
+        .file("robot/topics/control/controls.capnp")
         .run()
         .expect("failed to compile controls schema");
 
-    // ── Communicate node schema (colocated) ─────────────────────
     capnpc::CompilerCommand::new()
-        .src_prefix("robot/nodes/communicate")
+        .src_prefix("robot/topics/mission")
         .default_parent_module(vec!["schema".into()])
         .import_path(&root)
-        .file("robot/nodes/communicate/mission.capnp")
+        .file("robot/topics/mission/mission.capnp")
         .run()
         .expect("failed to compile mission schema");
+
+    capnpc::CompilerCommand::new()
+        .src_prefix("robot/topics/sim_pose")
+        .default_parent_module(vec!["schema".into()])
+        .file("robot/topics/sim_pose/sim.capnp")
+        .run()
+        .expect("failed to compile sim schema");
 
     // ── Actions ─────────────────────────────────────────────────
     capnpc::CompilerCommand::new()

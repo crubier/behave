@@ -1,0 +1,9 @@
+name: sim
+description: >
+  Full simulation mode with a simulated flight controller.
+  Launch UE5 BehaveSim separately and run send_pose for camera control.
+nodes:
+  - sense
+  - control-sim
+  - behave
+  - communicate

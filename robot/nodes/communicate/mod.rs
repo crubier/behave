@@ -8,8 +8,9 @@ use iceoryx2::prelude::*;
 use log::{error, info, warn};
 use tokio::net::UdpSocket;
 
-use behave::ipc::MissionMessage;
+use behave::ipc::IpcMessage;
 use behave::schema::mission_capnp::mission;
+use behave::topics;
 
 const UDP_PORT: u16 = 9000;
 const UDP_BUF_SIZE: usize = 65536;
@@ -29,12 +30,8 @@ async fn run_async() -> Result<()> {
 
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
-    let mission_service = node
-        .service_builder(&"behave/Mission".try_into()?)
-        .publish_subscribe::<MissionMessage>()
-        .open_or_create()?;
-    let mission_pub = mission_service.publisher_builder().create()?;
-    info!("publishing behave/Mission");
+    let mission_pub = topics::mission::publish(&node)?;
+    info!("publishing {}", topics::mission::NAME);
 
     let socket = UdpSocket::bind(format!("0.0.0.0:{UDP_PORT}")).await?;
     info!("listening on UDP 0.0.0.0:{UDP_PORT}");
@@ -56,7 +53,7 @@ async fn run_async() -> Result<()> {
                         let mid = m.get_id();
                         info!("decoded mission #{mid} -> forwarding to Behave");
 
-                        let mut envelope = MissionMessage::default();
+                        let mut envelope = IpcMessage::<{ topics::mission::BUF }>::default();
                         envelope.len = len as u32;
                         envelope.data[..len].copy_from_slice(&buf[..len]);
 
