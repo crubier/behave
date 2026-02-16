@@ -8,7 +8,7 @@ use anyhow::Result;
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
-use behave::actions::io::ActionIO;
+use behave::actions::io::ActionAPI;
 use behave::actions::{ActionRun, RunStatus, TickResult};
 use behave::controls::CmdPublisher;
 use behave::topics;
@@ -81,14 +81,14 @@ pub fn run() -> Result<()> {
 
         // ── Tick active run ──────────────────────────────────
         if let Some(ref mut run) = active_run {
-            let io = ActionIO {
+            let api = ActionAPI {
                 cmd: &publisher,
                 control_response: snap_resp,
                 control_status: snap_ctrl,
                 sense_status: snap_sense,
             };
 
-            let result = behave::actions::tick(run, &io);
+            let result = behave::actions::tick(&api, run);
 
             // Publish full tree state (including final completed state)
             let bytes = behave::actions::to_bytes(run);

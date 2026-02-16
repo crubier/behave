@@ -2,7 +2,7 @@
 
 use log::info;
 
-use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
+use super::{ActionAPI, ActionRun, ActionResult, TickResult, action_result, get_args};
 use crate::controls;
 
 pub mod proto {
@@ -11,16 +11,17 @@ pub mod proto {
 
 const ALTITUDE_TOLERANCE_M: f64 = 1.0;
 
-pub fn tick(run: &mut ActionRun, args: &proto::TakeoffArgs, io: &ActionIO) -> TickResult {
+pub fn tick(api: &ActionAPI, run: &mut ActionRun) -> TickResult {
+    let args = get_args!(run, Takeoff);
     let id = run.run_id;
 
     // First tick: send command
     if run.started_at == super::now_utime() || run.result.is_none() && run.outputs.is_empty() {
         info!("[#{id}] TAKEOFF start: target={:.1}m", args.altitude_m);
-        let _ = controls::send_takeoff(io.cmd, args.altitude_m);
+        let _ = controls::send_takeoff(api.cmd, args.altitude_m);
     }
 
-    let current = io.sense_status.altitude_m;
+    let current = api.sense_status.altitude_m;
     if (current - args.altitude_m).abs() < ALTITUDE_TOLERANCE_M {
         info!("[#{id}] TAKEOFF reached {:.1}m", current);
         run.result = Some(ActionResult { result: Some(action_result::Result::Takeoff(

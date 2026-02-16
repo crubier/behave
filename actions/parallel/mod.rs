@@ -3,13 +3,13 @@
 
 use log::info;
 
-use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
+use super::{ActionAPI, ActionRun, ActionResult, TickResult, action_result};
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/behave.actions.parallel.rs"));
 }
 
-pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
+pub fn tick(api: &ActionAPI, run: &mut ActionRun) -> TickResult {
     let id = run.run_id;
 
     // Create child runs on first tick
@@ -25,7 +25,7 @@ pub fn tick(run: &mut ActionRun, io: &ActionIO) -> TickResult {
     let mut failed = 0u32;
 
     for child in &mut run.children {
-        match super::tick(child, io) {
+        match super::tick(api, child) {
             TickResult::Running => {}
             TickResult::Success => succeeded += 1,
             TickResult::Failure => failed += 1,

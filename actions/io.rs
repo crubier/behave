@@ -1,4 +1,4 @@
-//! ActionIO -- the subset of topics exposed to actions.
+//! ActionAPI -- the robot interface exposed to actions.
 //!
 //! Actions can:
 //!   - Send:    ControlRequest (via `controls::send_*` helpers)
@@ -16,7 +16,7 @@ use crate::topics::sense::status::SenseStatus;
 /// Created and updated by the behave node each tick.
 /// Actions receive a reference to this -- they can send control
 /// requests and read the latest state, but nothing else.
-pub struct ActionIO<'a> {
+pub struct ActionAPI<'a> {
     /// Send control requests (arm, takeoff, goto, etc.)
     pub cmd: &'a dyn CmdPublisher,
 

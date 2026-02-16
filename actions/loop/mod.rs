@@ -6,13 +6,14 @@
 
 use log::info;
 
-use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
+use super::{ActionAPI, ActionRun, ActionResult, TickResult, action_result, get_args};
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/behave.actions.loop_action.rs"));
 }
 
-pub fn tick(run: &mut ActionRun, args: &proto::LoopArgs, io: &ActionIO) -> TickResult {
+pub fn tick(api: &ActionAPI, run: &mut ActionRun) -> TickResult {
+    let args = get_args!(run, Loop);
     let id = run.run_id;
     let max = args.max_iterations;
 
@@ -50,7 +51,7 @@ pub fn tick(run: &mut ActionRun, args: &proto::LoopArgs, io: &ActionIO) -> TickR
     }
 
     // Tick the current (last) iteration
-    let child_result = super::tick(run.children.last_mut().unwrap(), io);
+    let child_result = super::tick(api, run.children.last_mut().unwrap());
 
     match child_result {
         TickResult::Running => TickResult::Running,

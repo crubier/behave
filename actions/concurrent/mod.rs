@@ -3,13 +3,14 @@
 
 use log::info;
 
-use super::{ActionIO, ActionRun, ActionResult, TickResult, action_result};
+use super::{ActionAPI, ActionRun, ActionResult, TickResult, action_result, get_args};
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/behave.actions.concurrent.rs"));
 }
 
-pub fn tick(run: &mut ActionRun, args: &proto::ConcurrentArgs, io: &ActionIO) -> TickResult {
+pub fn tick(api: &ActionAPI, run: &mut ActionRun) -> TickResult {
+    let args = get_args!(run, Concurrent);
     let id = run.run_id;
 
     // Create child runs on first tick
@@ -27,7 +28,7 @@ pub fn tick(run: &mut ActionRun, args: &proto::ConcurrentArgs, io: &ActionIO) ->
     let mut failed = 0u32;
 
     for child in &mut run.children {
-        match super::tick(child, io) {
+        match super::tick(api, child) {
             TickResult::Running => {}
             TickResult::Success => succeeded += 1,
             TickResult::Failure => failed += 1,
