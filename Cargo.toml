@@ -17,6 +17,7 @@ serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
 iceoryx2-bb-container = "0.7"
+foxglove = "0.17"
 
 [build-dependencies]
 prost-build = "0.13"
@@ -67,6 +68,10 @@ path = "robot/nodes/communicate/main.rs"
 [[bin]]
 name = "node-gcs-mock"
 path = "robot/nodes/gcs_mock/main.rs"
+
+[[bin]]
+name = "node-foxglove"
+path = "robot/nodes/foxglove/main.rs"
 
 # ── Runmodes ────────────────────────────────────────────────────
 

@@ -39,6 +39,9 @@ pub fn run() -> Result<()> {
     let cmd_pub = topics::control::request::publish(&node)?;
     info!("publishing {}", topics::control::request::NAME);
 
+    let state_pub = topics::behave::state::publish(&node)?;
+    info!("publishing {}", topics::behave::state::NAME);
+
     let ctrl_resp_sub = topics::control::response::subscribe(&node)?;
     info!("subscribed to {}", topics::control::response::NAME);
 
@@ -85,7 +88,15 @@ pub fn run() -> Result<()> {
                 sense_status: snap_sense,
             };
 
-            match behave::actions::tick(run, &io) {
+            let result = behave::actions::tick(run, &io);
+
+            // Publish full tree state (including final completed state)
+            let bytes = behave::actions::to_bytes(run);
+            if let Err(e) = topics::publish_bytes(&state_pub, &bytes) {
+                warn!("failed to publish mission state: {e}");
+            }
+
+            match result {
                 TickResult::Running => {}
                 TickResult::Success => {
                     info!("=== run #{} SUCCESS: {:?} ===", run.run_id, run.result);

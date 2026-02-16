@@ -63,7 +63,7 @@ pub fn receive_native<T: Debug + ZeroCopySend + Copy>(
     }
 }
 
-// ── IpcMessage pub/sub (for ActionRequest FlatBuffer envelope) ──
+// ── IpcMessage pub/sub (for variable-size protobuf envelopes) ────
 
 use crate::ipc::IpcMessage;
 
@@ -87,6 +87,17 @@ pub fn create_subscriber<const N: usize>(node: &IoxNode, name: &str) -> Result<S
         .publish_subscribe::<IpcMessage<N>>()
         .open_or_create()?;
     Ok(service.subscriber_builder().create()?)
+}
+
+/// Publish raw bytes inside an IpcMessage envelope.
+pub fn publish_bytes<const N: usize>(pub_: &Pub<N>, bytes: &[u8]) -> Result<()> {
+    anyhow::ensure!(bytes.len() <= N, "message too large ({} > {N})", bytes.len());
+    let mut msg = IpcMessage::<N>::default();
+    msg.len = bytes.len() as u32;
+    msg.data[..bytes.len()].copy_from_slice(bytes);
+    let sample = pub_.loan_uninit()?;
+    sample.write_payload(msg).send()?;
+    Ok(())
 }
 
 pub mod behave;

@@ -94,6 +94,11 @@ pub fn from_bytes(bytes: &[u8]) -> Result<ActionRun> {
     Ok(run)
 }
 
+/// Encode an ActionRun tree to protobuf bytes.
+pub fn to_bytes(run: &ActionRun) -> Vec<u8> {
+    run.encode_to_vec()
+}
+
 // ── Tick dispatch ───────────────────────────────────────────────
 
 /// Tick an ActionRun. Returns Running/Success/Failure for control flow.

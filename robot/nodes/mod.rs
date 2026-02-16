@@ -9,3 +9,4 @@ pub mod sim_metaverse;
 pub mod behave;
 pub mod communicate;
 pub mod gcs_mock;
+pub mod foxglove;

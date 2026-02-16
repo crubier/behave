@@ -32,3 +32,4 @@ nodes:
   behave:
   communicate:
   gcs-mock:
+  foxglove:
