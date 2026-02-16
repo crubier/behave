@@ -18,9 +18,12 @@ tokio = { version = "1", features = ["full"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
 iceoryx2-bb-container = "0.7"
 foxglove = "0.17"
+prost-reflect = { version = "0.14", features = ["serde"] }
+serde_json = "1"
 
 [build-dependencies]
 prost-build = "0.13"
+prost = "0.13"
 glob = "0.3"
 
 # ── Node binaries ───────────────────────────────────────────────

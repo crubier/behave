@@ -1,3 +1,5 @@
+use prost::Message;
+
 fn main() {
     // Auto-discover all .proto files under actions/.
     let proto_files: Vec<_> = glob::glob("actions/**/*.proto")
@@ -32,16 +34,19 @@ fn main() {
             config.extern_path(".behave.actions.parallel",      "crate::actions::parallel::proto");
             config.extern_path(".behave.actions.loop_action",   "crate::actions::loop_action::proto");
             config.extern_path(".behave.actions.concurrent",    "crate::actions::concurrent::proto");
-
-            // Emit a FileDescriptorSet so the foxglove node can provide the
-            // protobuf schema to Foxglove for decoding ActionRun messages.
-            let out_dir = std::path::PathBuf::from(
-                std::env::var("OUT_DIR").expect("OUT_DIR not set"),
-            );
-            config.file_descriptor_set_path(out_dir.join("action_descriptor.bin"));
-
             config.compile_protos(&action_proto, &["actions/"])
                 .expect("failed to compile action.proto");
         }
+
+        // Generate a complete FileDescriptorSet containing ALL types for
+        // Foxglove schema discovery (load_fds calls protoc with --include_imports).
+        let out_dir = std::path::PathBuf::from(
+            std::env::var("OUT_DIR").expect("OUT_DIR not set"),
+        );
+        let fds = prost_build::Config::new()
+            .load_fds(&proto_files, &["actions/"])
+            .expect("failed to load file descriptor set for Foxglove");
+        std::fs::write(out_dir.join("action_descriptor.bin"), fds.encode_to_vec())
+            .expect("failed to write action_descriptor.bin");
     }
 }
