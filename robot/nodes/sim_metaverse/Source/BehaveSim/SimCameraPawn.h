@@ -5,12 +5,14 @@
 #include "SimCameraPawn.generated.h"
 
 class FIoxSimSubscriber;
+struct IoxFramePublisher;
 
 /**
  * Camera pawn driven by iceoryx2 pose data from sim_metaverse.
  *
- * Subscribes to the behave/SimStatus topic via shared memory
- * and teleports the camera to the received pose each frame.
+ * Subscribes to behave/SimStatus for pose updates.
+ * Captures the camera view at 640x480 and publishes raw BGRA frames
+ * on behave/video/CameraRawFrame via iceoryx2.
  */
 UCLASS()
 class BEHAVESIM_API ASimCameraPawn : public APawn
@@ -28,5 +30,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	class UCameraComponent* CameraComp;
 
+	UPROPERTY(VisibleAnywhere, Category = "Capture")
+	class USceneCaptureComponent2D* SceneCapture;
+
+	UPROPERTY()
+	class UTextureRenderTarget2D* RenderTarget;
+
 	FIoxSimSubscriber* IoxSub = nullptr;
+	IoxFramePublisher* FramePub = nullptr;
 };

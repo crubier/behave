@@ -104,3 +104,4 @@ pub mod behave;
 pub mod control;
 pub mod sense;
 pub mod sim;
+pub mod video;
