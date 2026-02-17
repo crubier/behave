@@ -3,11 +3,15 @@
 //! Subscribes to SimRequest, simulates simple physics by linearly
 //! interpolating position and quaternion, publishes SimStatus at 60 Hz,
 //! and sends a UDP pose packet to UE5.
+//!
+//! If `BEHAVE_UE_PROJECT` is set, automatically launches UE5 in standalone
+//! game mode (`-game`) with the configured resolution and FPS cap.
 
 use std::net::UdpSocket;
+use std::process::{Child, Command};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use iceoryx2::prelude::*;
 use log::{info, warn};
 
@@ -17,6 +21,10 @@ use behave::topics::sim::status::SimStatus;
 
 /// UDP port for sending pose to UE5.
 const UE5_UDP_PORT: u16 = 9876;
+
+const DEFAULT_UE_RES_X: u32 = 1920;
+const DEFAULT_UE_RES_Y: u32 = 1080;
+const DEFAULT_UE_FPS: u32 = 30;
 
 /// Flat pose packet sent over UDP to UE5 (64 bytes, little-endian).
 #[repr(C, packed)]
@@ -33,6 +41,69 @@ const DEFAULT_ANGULAR_SPEED: f64 = 1.0;
 
 fn env_f64(key: &str, default: f64) -> f64 {
     std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+fn env_u32(key: &str, default: u32) -> u32 {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+/// Launch or prompt for UE5 based on `BEHAVE_UE_MODE`.
+///
+/// - `"game"` (default): auto-launch UE5 in standalone game mode (`-game`)
+/// - `"editor"`: log the command for the user to open UE5 in editor mode manually
+///
+/// Requires `BEHAVE_UE_PROJECT` to be set. Returns the child process handle
+/// when auto-launching, or `None` in editor mode.
+fn launch_ue5() -> Result<Option<Child>> {
+    let project_rel = match std::env::var("BEHAVE_UE_PROJECT") {
+        Ok(p) => p,
+        Err(_) => {
+            warn!("BEHAVE_UE_PROJECT not set -- launch UE5 manually");
+            return Ok(None);
+        }
+    };
+
+    let project_path = std::path::Path::new(&project_rel)
+        .canonicalize()
+        .with_context(|| format!("UE5 project not found: {project_rel}"))?;
+
+    let mode = std::env::var("BEHAVE_UE_MODE")
+        .unwrap_or_else(|_| "game".to_string())
+        .to_lowercase();
+
+    match mode.as_str() {
+        "editor" => {
+            info!("UE5 mode: editor (manual launch)");
+            info!("  Run this command, then press Play in the editor:");
+            info!("  open -a \"UnrealEditor\" {}", project_path.display());
+            Ok(None)
+        }
+        "game" | _ => {
+            let res_x = env_u32("BEHAVE_UE_RES_X", DEFAULT_UE_RES_X);
+            let res_y = env_u32("BEHAVE_UE_RES_Y", DEFAULT_UE_RES_Y);
+            let fps = env_u32("BEHAVE_UE_FPS", DEFAULT_UE_FPS);
+
+            info!("UE5 mode: game (auto-launch)");
+            info!("  project:    {}", project_path.display());
+            info!("  resolution: {res_x}x{res_y}");
+            info!("  max FPS:    {fps}");
+
+            let child = Command::new("open")
+                .arg("-a").arg("UnrealEditor")
+                .arg("--args")
+                .arg(project_path.to_str().unwrap())
+                .arg("-game")
+                .arg("-windowed")
+                .arg(format!("-ResX={res_x}"))
+                .arg(format!("-ResY={res_y}"))
+                .arg(format!("-ExecCmds=t.MaxFPS {fps}"))
+                .spawn()
+                .context("failed to launch UE5 via `open -a UnrealEditor`")?;
+
+            info!("UE5 launched (it will start receiving UDP once loaded)");
+            Ok(Some(child))
+        }
+    }
 }
 
 struct Pose { x: f64, y: f64, z: f64, qw: f64, qx: f64, qy: f64, qz: f64 }
@@ -70,6 +141,9 @@ fn now_us() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_mi
 
 pub fn run() -> Result<()> {
     behave::logging::init("SimMeta");
+
+    // Launch UE5 in standalone game mode (if configured)
+    let _ue5_process = launch_ue5()?;
 
     let linear_speed = env_f64("BEHAVE_MAX_LINEAR_SPEED", DEFAULT_LINEAR_SPEED);
     let angular_speed = env_f64("BEHAVE_MAX_ANGULAR_SPEED", DEFAULT_ANGULAR_SPEED);

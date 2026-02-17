@@ -1,13 +1,18 @@
 name: metaverse
 description: >
   Full metaverse simulation mode with UE5.
-  Launch UE5 BehaveSim separately and run send_pose for camera control.
+  UE5 is launched automatically in standalone game mode.
 nodes:
   sense-metaverse:
   control-metaverse:
   sim-metaverse:
     max_linear_speed: 10.0
     max_angular_speed: 2.0
+    ue_project: robot/nodes/sim_metaverse/BehaveSim.uproject
+    ue_mode: game        # "game" = auto-launch standalone, "editor" = manual launch
+    ue_res_x: 1920
+    ue_res_y: 1080
+    ue_fps: 30
   behave:
   communicate:
   gcs-mock:

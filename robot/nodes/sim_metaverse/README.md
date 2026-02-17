@@ -13,10 +13,32 @@ Also sends the current pose to UE5 over UDP (port 9876) as a flat 64-byte packet
 ## Usage
 
 ```bash
-# 1. Launch UE5
-open -a "UnrealEditor" BehaveSim.uproject
+# Run the robot stack -- UE5 launches automatically in standalone game mode
+cargo run --bin runmode -- robot/modes/metaverse.yaml
+```
 
-# 2. Press Play in UE5, then run the robot stack:
+The `sim-metaverse` node manages UE5 startup based on the `ue_mode` parameter:
+
+| `ue_mode`  | Behavior                                                       |
+|------------|----------------------------------------------------------------|
+| `game`     | Auto-launches UE5 in standalone game mode (`-game`), no editor |
+| `editor`   | Logs the `open` command for the user to launch UE5 manually    |
+
+Resolution and FPS are configurable (apply to `game` mode):
+
+| YAML param   | Env var            | Default | Description                    |
+|--------------|--------------------|---------|--------------------------------|
+| `ue_project` | `BEHAVE_UE_PROJECT`| *(none)*| Path to `.uproject` (required) |
+| `ue_mode`    | `BEHAVE_UE_MODE`   | `game`  | `game` or `editor`             |
+| `ue_res_x`   | `BEHAVE_UE_RES_X`  | 1920    | Horizontal resolution          |
+| `ue_res_y`   | `BEHAVE_UE_RES_Y`  | 1080    | Vertical resolution            |
+| `ue_fps`     | `BEHAVE_UE_FPS`    | 30      | Max FPS cap                    |
+
+In `editor` mode, open UE5 manually and press Play before running the stack:
+
+```bash
+open -a "UnrealEditor" robot/nodes/sim_metaverse/BehaveSim.uproject
+# Press Play in UE5, then run:
 cargo run --bin runmode -- robot/modes/metaverse.yaml
 ```
 
