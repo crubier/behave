@@ -1,9 +1,5 @@
 #include "IoxBridge.h"
 
-THIRD_PARTY_INCLUDES_START
-#include "iox_bridge.h"
-THIRD_PARTY_INCLUDES_END
-
 FIoxSimSubscriber* FIoxSimSubscriber::Create(const char* ServiceName)
 {
 	IoxSimSubscriber* RawSub = iox_sim_subscriber_create(ServiceName);
@@ -19,27 +15,13 @@ FIoxSimSubscriber* FIoxSimSubscriber::Create(const char* ServiceName)
 	return Self;
 }
 
-bool FIoxSimSubscriber::Receive(FIoxPose& OutPose)
+bool FIoxSimSubscriber::Receive(IoxPose& OutPose)
 {
 	if (!Impl)
 	{
 		return false;
 	}
-
-	IoxPose Pose;
-	if (iox_sim_subscriber_receive(static_cast<IoxSimSubscriber*>(Impl), &Pose))
-	{
-		OutPose.X = Pose.x;
-		OutPose.Y = Pose.y;
-		OutPose.Z = Pose.z;
-		OutPose.QW = Pose.qw;
-		OutPose.QX = Pose.qx;
-		OutPose.QY = Pose.qy;
-		OutPose.QZ = Pose.qz;
-		OutPose.Utime = Pose.utime;
-		return true;
-	}
-	return false;
+	return iox_sim_subscriber_receive(static_cast<IoxSimSubscriber*>(Impl), &OutPose);
 }
 
 FIoxSimSubscriber::~FIoxSimSubscriber()

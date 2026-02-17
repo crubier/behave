@@ -2,21 +2,17 @@
 
 #include "CoreMinimal.h"
 
-/// Pose data received via iceoryx2 shared memory.
-struct FIoxPose
-{
-	double X, Y, Z;
-	double QW, QX, QY, QZ;
-	uint64 Utime;
-};
+THIRD_PARTY_INCLUDES_START
+#include "iox_bridge.h"
+THIRD_PARTY_INCLUDES_END
 
 /// Opaque handle to an iceoryx2 subscriber for SimStatus.
-/// Implemented in IoxBridge.cpp to keep iceoryx2 headers out of UE5 headers.
+/// Implemented in IoxBridge.cpp to keep iceoryx2 internals out of UE5.
 class FIoxSimSubscriber
 {
 public:
 	static FIoxSimSubscriber* Create(const char* ServiceName);
-	bool Receive(FIoxPose& OutPose);
+	bool Receive(IoxPose& OutPose);
 	~FIoxSimSubscriber();
 
 private:

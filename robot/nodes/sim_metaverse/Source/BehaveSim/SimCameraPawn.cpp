@@ -36,14 +36,14 @@ void ASimCameraPawn::Tick(float DeltaTime)
 		return;
 	}
 
-	FIoxPose Pose;
+	IoxPose Pose;
 	if (IoxSub->Receive(Pose))
 	{
 		// Schema uses meters; UE5 uses centimetres.
-		const FVector Location(Pose.X * 100.0, Pose.Y * 100.0, Pose.Z * 100.0);
+		const FVector Location(Pose.x * 100.0, Pose.y * 100.0, Pose.z * 100.0);
 
 		// Quaternion order: UE5 FQuat(X, Y, Z, W)
-		const FQuat Rotation(Pose.QX, Pose.QY, Pose.QZ, Pose.QW);
+		const FQuat Rotation(Pose.qx, Pose.qy, Pose.qz, Pose.qw);
 
 		SetActorLocationAndRotation(Location, Rotation.IsNormalized() ? Rotation : FQuat::Identity);
 	}

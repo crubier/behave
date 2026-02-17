@@ -84,17 +84,43 @@ The iceoryx2 bridge uses `IOX2_TYPE_NAME` for cross-language type matching betwe
 - Subscribes to: `behave/SimRequest`
 - Publishes to: `behave/SimStatus` (consumed by UE5 + sense node)
 
+## Opening in the UE5 Editor
+
+To open the project in the Unreal Editor (for editing levels, materials, etc.):
+
+```bash
+open -a "UnrealEditor" robot/nodes/sim_metaverse/BehaveSim.uproject
+```
+
+Then press Play in the editor to start the game. Set `ue_mode: editor` in `metaverse.yaml`
+so the node doesn't auto-launch a second UE5 instance.
+
+## Cleaning UE5 Build Artifacts
+
+```bash
+./robot/nodes/sim_metaverse/clean_ue5.sh
+```
+
+This removes compiled binaries, the iceoryx2 bridge build, and cached UE5 settings.
+After cleaning, rebuild with `./build_ue5.sh`.
+
 ## Troubleshooting
 
-**UE5 "BehaveSim could not be compiled"** -- rebuild the iceoryx2 bridge first:
+**UE5 "BehaveSim could not be compiled"** -- the iceoryx2 bridge dylibs are missing. Build them first:
 
 ```bash
 ./build_ue5.sh
 ```
 
-**UE5 "The game module 'BehaveSim' could not be loaded"** -- clean and rebuild:
+**UE5 "The game module 'BehaveSim' could not be loaded"** -- stale binaries. Clean and rebuild:
 
 ```bash
 rm -rf Binaries/ Intermediate/
 ./build_ue5.sh
+```
+
+**Window wrong size / mouse captured** -- delete the cached UE5 settings:
+
+```bash
+rm -rf Saved/Config/
 ```
