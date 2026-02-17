@@ -23,7 +23,7 @@ fn main() {
     let config_path = match args.get(1) {
         Some(p) => PathBuf::from(p),
         None => {
-            eprintln!("Usage: runmode <mode.json>");
+            eprintln!("Usage: runmode <mode.yaml>");
             std::process::exit(1);
         }
     };

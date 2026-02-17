@@ -17,6 +17,5 @@ class BEHAVESIM_API ABehaveSimGameMode : public AGameModeBase
 
 public:
 	ABehaveSimGameMode();
-
 	virtual void BeginPlay() override;
 };
