@@ -12,6 +12,23 @@ import "parallel/parallel.proto";
 import "loop/loop.proto";
 import "concurrent/concurrent.proto";
 
+// ── Action type IDs ─────────────────────────────────────────────
+//
+// Each action type has a fixed numeric ID used as the protobuf field
+// number in ALL five oneof unions (Args, Result, State, Input, Output).
+// This ensures consistent identification across the wire.
+//
+//   sequence      = 2
+//   fallback      = 3
+//   takeoff       = 4
+//   land          = 5
+//   goto_waypoint = 6
+//   return_home   = 7
+//   take_photo    = 8
+//   parallel      = 9
+//   loop          = 10
+//   concurrent    = 11
+
 // ── Action args tree (the mission definition) ──────────────────
 
 message ActionArgs {
@@ -35,16 +52,16 @@ message ActionArgs {
 
 message ActionResult {
   oneof result {
-    behave.actions.sequence.SequenceResult sequence = 1;
-    behave.actions.fallback.FallbackResult fallback = 2;
-    behave.actions.takeoff.TakeoffResult takeoff = 3;
-    behave.actions.land.LandResult land = 4;
-    behave.actions.goto_waypoint.GotoWaypointResult goto_waypoint = 5;
-    behave.actions.return_home.ReturnHomeResult return_home = 6;
-    behave.actions.take_photo.TakePhotoResult take_photo = 7;
-    behave.actions.parallel.ParallelResult parallel = 8;
-    behave.actions.loop_action.LoopResult loop = 9;
-    behave.actions.concurrent.ConcurrentResult concurrent = 10;
+    behave.actions.sequence.SequenceResult sequence = 2;
+    behave.actions.fallback.FallbackResult fallback = 3;
+    behave.actions.takeoff.TakeoffResult takeoff = 4;
+    behave.actions.land.LandResult land = 5;
+    behave.actions.goto_waypoint.GotoWaypointResult goto_waypoint = 6;
+    behave.actions.return_home.ReturnHomeResult return_home = 7;
+    behave.actions.take_photo.TakePhotoResult take_photo = 8;
+    behave.actions.parallel.ParallelResult parallel = 9;
+    behave.actions.loop_action.LoopResult loop = 10;
+    behave.actions.concurrent.ConcurrentResult concurrent = 11;
   }
 }
 
@@ -52,16 +69,16 @@ message ActionResult {
 
 message ActionState {
   oneof state {
-    behave.actions.sequence.SequenceState sequence = 1;
-    behave.actions.fallback.FallbackState fallback = 2;
-    behave.actions.takeoff.TakeoffState takeoff = 3;
-    behave.actions.land.LandState land = 4;
-    behave.actions.goto_waypoint.GotoWaypointState goto_waypoint = 5;
-    behave.actions.return_home.ReturnHomeState return_home = 6;
-    behave.actions.take_photo.TakePhotoState take_photo = 7;
-    behave.actions.parallel.ParallelState parallel = 8;
-    behave.actions.loop_action.LoopState loop = 9;
-    behave.actions.concurrent.ConcurrentState concurrent = 10;
+    behave.actions.sequence.SequenceState sequence = 2;
+    behave.actions.fallback.FallbackState fallback = 3;
+    behave.actions.takeoff.TakeoffState takeoff = 4;
+    behave.actions.land.LandState land = 5;
+    behave.actions.goto_waypoint.GotoWaypointState goto_waypoint = 6;
+    behave.actions.return_home.ReturnHomeState return_home = 7;
+    behave.actions.take_photo.TakePhotoState take_photo = 8;
+    behave.actions.parallel.ParallelState parallel = 9;
+    behave.actions.loop_action.LoopState loop = 10;
+    behave.actions.concurrent.ConcurrentState concurrent = 11;
   }
 }
 
@@ -69,16 +86,16 @@ message ActionState {
 
 message ActionInput {
   oneof input {
-    behave.actions.sequence.SequenceInput sequence = 1;
-    behave.actions.fallback.FallbackInput fallback = 2;
-    behave.actions.takeoff.TakeoffInput takeoff = 3;
-    behave.actions.land.LandInput land = 4;
-    behave.actions.goto_waypoint.GotoWaypointInput goto_waypoint = 5;
-    behave.actions.return_home.ReturnHomeInput return_home = 6;
-    behave.actions.take_photo.TakePhotoInput take_photo = 7;
-    behave.actions.parallel.ParallelInput parallel = 8;
-    behave.actions.loop_action.LoopInput loop = 9;
-    behave.actions.concurrent.ConcurrentInput concurrent = 10;
+    behave.actions.sequence.SequenceInput sequence = 2;
+    behave.actions.fallback.FallbackInput fallback = 3;
+    behave.actions.takeoff.TakeoffInput takeoff = 4;
+    behave.actions.land.LandInput land = 5;
+    behave.actions.goto_waypoint.GotoWaypointInput goto_waypoint = 6;
+    behave.actions.return_home.ReturnHomeInput return_home = 7;
+    behave.actions.take_photo.TakePhotoInput take_photo = 8;
+    behave.actions.parallel.ParallelInput parallel = 9;
+    behave.actions.loop_action.LoopInput loop = 10;
+    behave.actions.concurrent.ConcurrentInput concurrent = 11;
   }
 }
 
@@ -86,16 +103,16 @@ message ActionInput {
 
 message ActionOutput {
   oneof output {
-    behave.actions.sequence.SequenceOutput sequence = 1;
-    behave.actions.fallback.FallbackOutput fallback = 2;
-    behave.actions.takeoff.TakeoffOutput takeoff = 3;
-    behave.actions.land.LandOutput land = 4;
-    behave.actions.goto_waypoint.GotoWaypointOutput goto_waypoint = 5;
-    behave.actions.return_home.ReturnHomeOutput return_home = 6;
-    behave.actions.take_photo.TakePhotoOutput take_photo = 7;
-    behave.actions.parallel.ParallelOutput parallel = 8;
-    behave.actions.loop_action.LoopOutput loop = 9;
-    behave.actions.concurrent.ConcurrentOutput concurrent = 10;
+    behave.actions.sequence.SequenceOutput sequence = 2;
+    behave.actions.fallback.FallbackOutput fallback = 3;
+    behave.actions.takeoff.TakeoffOutput takeoff = 4;
+    behave.actions.land.LandOutput land = 5;
+    behave.actions.goto_waypoint.GotoWaypointOutput goto_waypoint = 6;
+    behave.actions.return_home.ReturnHomeOutput return_home = 7;
+    behave.actions.take_photo.TakePhotoOutput take_photo = 8;
+    behave.actions.parallel.ParallelOutput parallel = 9;
+    behave.actions.loop_action.LoopOutput loop = 10;
+    behave.actions.concurrent.ConcurrentOutput concurrent = 11;
   }
 }
 
@@ -119,4 +136,36 @@ message ActionRun {
   repeated ActionOutput outputs = 8; // all outputs sent so far (time series)
   repeated ActionInput inputs = 9;   // all inputs received so far (time series)
   repeated ActionRun children = 10;
+  uint32 action_type_id = 11;       // protobuf field number shared across all oneofs (2-11)
+}
+
+// ── GCS <-> Behave envelope messages ────────────────────────────
+
+// Route an input to specific ActionRun(s) in the tree.
+// Targeting options (pick one):
+//   action_type_id: route to all runs of that action type (field number 2-11)
+//   action_id:      route to all runs originating from that ActionArgs.id
+//   run_id:         route to a specific ActionRun by its run_id
+message ActionInputEnvelope {
+  oneof target {
+    uint32 action_type_id = 1;
+    uint64 action_args_id = 2;
+    uint64 action_run_id = 3;
+  }
+  ActionInput input = 10;
+}
+
+// Streamed when an ActionRun completes (success or failure).
+message ActionResultEnvelope {
+  uint64 action_args_id = 1;  // from ActionArgs.id
+  uint64 action_run_id = 2;   // from ActionRun.run_id
+  RunStatus status = 3;
+  ActionResult result = 4;
+}
+
+// Streamed when an ActionRun produces an output.
+message ActionOutputEnvelope {
+  uint64 action_args_id = 1;  // from ActionArgs.id
+  uint64 action_run_id = 2;   // from ActionRun.run_id
+  ActionOutput output = 3;
 }

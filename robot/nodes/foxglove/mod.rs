@@ -1,7 +1,13 @@
 //! Foxglove bridge node -- bidirectional bridge between iceoryx2 and Foxglove.
 //!
-//! Reads:  `behave/ActionRun`     iceoryx2 -> Foxglove  (tree state)
-//! Writes: `behave/ActionRequest` Foxglove -> iceoryx2  (mission commands)
+//! iceoryx2 -> Foxglove:
+//!   - `behave/ActionRun`    (full tree state each tick)
+//!   - `behave/ActionResult` (individual completion events)
+//!   - `behave/ActionOutput` (streaming progress events)
+//!
+//! Foxglove -> iceoryx2:
+//!   - `behave/ActionRequest` (mission commands)
+//!   - `behave/ActionInput`   (routed inputs to specific runs)
 //!
 //! The protobuf FileDescriptorSet is embedded at compile time so Foxglove
 //! can decode and compose protobuf messages natively.
@@ -199,31 +205,77 @@ pub fn run() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("failed to create ActionRequest channel: {e}"))?;
     info!("channel /behave/ActionRequest ready");
 
+    // Foxglove channels for result/output streams (protobuf, read-only)
+    let result_schema = foxglove::Schema::new(
+        "behave.actions.ActionResultEnvelope",
+        "protobuf",
+        ACTION_DESCRIPTOR,
+    );
+    let result_channel = foxglove::ChannelBuilder::new("/behave/ActionResult")
+        .message_encoding("protobuf")
+        .schema(result_schema)
+        .build_raw()
+        .map_err(|e| anyhow::anyhow!("failed to create ActionResult channel: {e}"))?;
+    info!("channel /behave/ActionResult ready");
+
+    let output_schema = foxglove::Schema::new(
+        "behave.actions.ActionOutputEnvelope",
+        "protobuf",
+        ACTION_DESCRIPTOR,
+    );
+    let output_channel = foxglove::ChannelBuilder::new("/behave/ActionOutput")
+        .message_encoding("protobuf")
+        .schema(output_schema)
+        .build_raw()
+        .map_err(|e| anyhow::anyhow!("failed to create ActionOutput channel: {e}"))?;
+    info!("channel /behave/ActionOutput ready");
+
     // ── iceoryx2 node ─────────────────────────────────────────
     let node = NodeBuilder::new().create::<iceoryx2::prelude::ipc::Service>()?;
 
+    // Subscriptions (iceoryx2 -> Foxglove)
     let action_run_sub = topics::behave::state::subscribe(&node)?;
     info!("subscribed to {}", topics::behave::state::NAME);
 
+    let result_sub = topics::behave::result::subscribe(&node)?;
+    info!("subscribed to {}", topics::behave::result::NAME);
+
+    let output_sub = topics::behave::output::subscribe(&node)?;
+    info!("subscribed to {}", topics::behave::output::NAME);
+
+    // Publishers (Foxglove -> iceoryx2)
     let request_pub = topics::behave::request::publish(&node)?;
     info!("publishing {}", topics::behave::request::NAME);
+
+    let input_pub = topics::behave::input::publish(&node)?;
+    info!("publishing {}", topics::behave::input::NAME);
 
     info!("ready -- connect Foxglove to ws://localhost:8765");
 
     // ── Main loop ─────────────────────────────────────────────
     while node.wait(Duration::from_millis(50)).is_ok() {
-        // iceoryx2 -> Foxglove (ActionRun state)
+        // iceoryx2 -> Foxglove
         while let Some(sample) = action_run_sub.receive()? {
             let bytes = &sample.data[..sample.len as usize];
             action_run_channel.log(bytes);
         }
+        while let Some(sample) = result_sub.receive()? {
+            let bytes = &sample.data[..sample.len as usize];
+            result_channel.log(bytes);
+        }
+        while let Some(sample) = output_sub.receive()? {
+            let bytes = &sample.data[..sample.len as usize];
+            output_channel.log(bytes);
+        }
 
-        // Foxglove -> iceoryx2 (ActionRequest commands)
+        // Foxglove -> iceoryx2
         while let Ok(bytes) = request_rx.try_recv() {
             info!("forwarding {} bytes to {}", bytes.len(), topics::behave::request::NAME);
             if let Err(e) = topics::publish_bytes(&request_pub, &bytes) {
                 warn!("failed to forward action request: {e}");
             }
+            // Also forward to ActionInput topic if it looks like an input envelope
+            // (future: separate mpsc channel per topic based on client channel topic)
         }
     }
 

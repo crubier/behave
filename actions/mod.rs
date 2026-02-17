@@ -33,8 +33,9 @@ pub mod action_proto {
 }
 
 pub use action_proto::{
-    action_args, action_input, action_output, action_result, action_state,
-    ActionArgs, ActionInput, ActionOutput, ActionResult, ActionRun, ActionState, RunStatus,
+    action_args, action_input, action_input_envelope, action_output, action_result, action_state,
+    ActionArgs, ActionInput, ActionInputEnvelope, ActionOutput, ActionOutputEnvelope,
+    ActionResult, ActionResultEnvelope, ActionRun, ActionState, RunStatus,
 };
 
 // ── Tick result (control flow only -- data goes into ActionRun) ──
@@ -64,13 +65,20 @@ macro_rules! get_args {
 }
 pub(crate) use get_args;
 
-/// Set the action-specific result on an ActionRun.
+/// Set the action-specific result on an ActionRun and notify via ActionAPI.
 macro_rules! set_result {
-    ($run:expr, $variant:ident, $value:expr) => {
-        $run.result = Some($crate::actions::ActionResult {
+    ($api:expr, $run:expr, $variant:ident, $value:expr) => {{
+        let result = $crate::actions::ActionResult {
             result: Some($crate::actions::action_result::Result::$variant($value)),
+        };
+        $run.result = Some(result.clone());
+        let _ = $api.result_tx.send($crate::actions::ActionResultEnvelope {
+            action_args_id: $crate::actions::action_id($run),
+            action_run_id: $run.run_id,
+            status: $run.status,
+            result: Some(result),
         });
-    };
+    }};
 }
 pub(crate) use set_result;
 
@@ -95,13 +103,19 @@ macro_rules! get_state {
 }
 pub(crate) use get_state;
 
-/// Push an action-specific output onto the ActionRun outputs list.
+/// Push an action-specific output onto the ActionRun outputs list and notify via ActionAPI.
 macro_rules! push_output {
-    ($run:expr, $variant:ident, $value:expr) => {
-        $run.outputs.push($crate::actions::ActionOutput {
+    ($api:expr, $run:expr, $variant:ident, $value:expr) => {{
+        let output = $crate::actions::ActionOutput {
             output: Some($crate::actions::action_output::Output::$variant($value)),
+        };
+        $run.outputs.push(output.clone());
+        let _ = $api.output_tx.send($crate::actions::ActionOutputEnvelope {
+            action_args_id: $crate::actions::action_id($run),
+            action_run_id: $run.run_id,
+            output: Some(output),
         });
-    };
+    }};
 }
 pub(crate) use push_output;
 
@@ -153,6 +167,7 @@ pub fn init_run(args: &ActionArgs) -> ActionRun {
         outputs: vec![],
         inputs: vec![],
         children: vec![],
+        action_type_id: 0,
     }
 }
 
@@ -168,6 +183,46 @@ pub fn from_bytes(bytes: &[u8]) -> Result<ActionRun> {
 /// Encode an ActionRun tree to protobuf bytes.
 pub fn to_bytes(run: &ActionRun) -> Vec<u8> {
     run.encode_to_vec()
+}
+
+// ── Action type ID ──────────────────────────────────────────────
+//
+// Each action type has a fixed numeric ID matching its protobuf field
+// number across all five oneofs (Args=2..11, Result, State, Input, Output).
+// The ID is stored on ActionRun.action_type_id and set once by tick().
+
+/// Get the action type ID from an ActionRun.
+/// Returns the shared protobuf field number (2-11), or 0 if not yet ticked.
+pub fn action_type_id(run: &ActionRun) -> u32 {
+    run.action_type_id
+}
+
+/// Get the ActionArgs.id from an ActionRun.
+pub fn action_id(run: &ActionRun) -> u64 {
+    run.args.as_ref().map(|a| a.id).unwrap_or(0)
+}
+
+// ── Input routing ───────────────────────────────────────────────
+
+/// Route an ActionInputEnvelope to matching ActionRun(s) in the tree.
+/// Pushes the input into each matching run's `inputs` vector.
+pub fn route_input(run: &mut ActionRun, envelope: &ActionInputEnvelope) {
+    let matches = match &envelope.target {
+        Some(action_input_envelope::Target::ActionRunId(id)) => run.run_id == *id,
+        Some(action_input_envelope::Target::ActionArgsId(id)) => action_id(run) == *id,
+        Some(action_input_envelope::Target::ActionTypeId(id)) => action_type_id(run) == *id,
+        None => false,
+    };
+
+    if matches {
+        if let Some(input) = &envelope.input {
+            run.inputs.push(input.clone());
+        }
+    }
+
+    for child in &mut run.children {
+        route_input(child, envelope);
+    }
 }
 
 // ── Tick dispatch ───────────────────────────────────────────────
@@ -190,29 +245,46 @@ pub fn tick(api: &ActionAPI, run: &mut ActionRun) -> TickResult {
 
     let action = run.args.as_ref().and_then(|a| a.action.as_ref()).cloned();
 
-    let result = match action {
-        Some(action_args::Action::Sequence(_))    => sequence::tick(api, run),
-        Some(action_args::Action::Fallback(_))    => fallback::tick(api, run),
-        Some(action_args::Action::Parallel(_))    => parallel::tick(api, run),
-        Some(action_args::Action::Concurrent(_))  => concurrent::tick(api, run),
-        Some(action_args::Action::Loop(_))        => loop_action::tick(api, run),
-        Some(action_args::Action::Takeoff(_))     => takeoff::tick(api, run),
-        Some(action_args::Action::Land(_))        => land::tick(api, run),
-        Some(action_args::Action::GotoWaypoint(_)) => goto_waypoint::tick(api, run),
-        Some(action_args::Action::ReturnHome(_))  => return_home::tick(api, run),
-        Some(action_args::Action::TakePhoto(_))   => take_photo::tick(api, run),
-        None => TickResult::Failure,
+    let (type_id, result) = match action {
+        Some(action_args::Action::Sequence(_))     => ( 2, sequence::tick(api, run)),
+        Some(action_args::Action::Fallback(_))     => ( 3, fallback::tick(api, run)),
+        Some(action_args::Action::Takeoff(_))      => ( 4, takeoff::tick(api, run)),
+        Some(action_args::Action::Land(_))         => ( 5, land::tick(api, run)),
+        Some(action_args::Action::GotoWaypoint(_)) => ( 6, goto_waypoint::tick(api, run)),
+        Some(action_args::Action::ReturnHome(_))   => ( 7, return_home::tick(api, run)),
+        Some(action_args::Action::TakePhoto(_))    => ( 8, take_photo::tick(api, run)),
+        Some(action_args::Action::Parallel(_))     => ( 9, parallel::tick(api, run)),
+        Some(action_args::Action::Loop(_))         => (10, loop_action::tick(api, run)),
+        Some(action_args::Action::Concurrent(_))   => (11, concurrent::tick(api, run)),
+        None => (0, TickResult::Failure),
     };
+    run.action_type_id = type_id;
 
-    // Mark completion
+    // Mark completion and notify
     match result {
         TickResult::Success => {
             run.status = RunStatus::Succeeded.into();
             run.ended_at = now_utime();
+            if let Some(r) = &run.result {
+                let _ = api.result_tx.send(ActionResultEnvelope {
+                    action_args_id: action_id(run),
+                    action_run_id: run.run_id,
+                    status: run.status,
+                    result: Some(r.clone()),
+                });
+            }
         }
         TickResult::Failure => {
             run.status = RunStatus::Failed.into();
             run.ended_at = now_utime();
+            if let Some(r) = &run.result {
+                let _ = api.result_tx.send(ActionResultEnvelope {
+                    action_args_id: action_id(run),
+                    action_run_id: run.run_id,
+                    status: run.status,
+                    result: Some(r.clone()),
+                });
+            }
         }
         TickResult::Running => {}
     }
