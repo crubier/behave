@@ -1,0 +1,5 @@
+# CMake build output
+iceoryx2_bridge/build/
+
+# Pre-built libraries (rebuild with: cmake -S iceoryx2_bridge -B iceoryx2_bridge/build ...)
+iceoryx2/lib/

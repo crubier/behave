@@ -1,13 +1,12 @@
 //! Sim Metaverse node -- UE5 metaverse camera simulator.
 //!
 //! Subscribes to SimRequest, simulates simple physics by linearly
-//! interpolating position and quaternion, publishes SimStatus at 60 Hz,
-//! and sends a UDP pose packet to UE5.
+//! interpolating position and quaternion, publishes SimStatus at 60 Hz.
+//! UE5 reads SimStatus directly via iceoryx2 shared memory.
 //!
 //! If `BEHAVE_UE_PROJECT` is set, automatically launches UE5 in standalone
 //! game mode (`-game`) unless it is already running.
 
-use std::net::UdpSocket;
 use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -19,7 +18,6 @@ use behave::topics;
 use behave::topics::sim::CameraPose;
 use behave::topics::sim::status::SimStatus;
 
-const UE5_UDP_PORT: u16 = 9876;
 const DEFAULT_UE_RES_X: u32 = 1920;
 const DEFAULT_UE_RES_Y: u32 = 1080;
 const DEFAULT_UE_FPS: u32 = 30;
@@ -28,14 +26,6 @@ const TICK_HZ: u64 = 60;
 const TICK_DT: f64 = 1.0 / TICK_HZ as f64;
 const DEFAULT_LINEAR_SPEED: f64 = 2.0;
 const DEFAULT_ANGULAR_SPEED: f64 = 1.0;
-
-/// Flat pose packet sent over UDP to UE5 (64 bytes, little-endian).
-#[repr(C, packed)]
-struct UdpPosePacket {
-    x: f64, y: f64, z: f64,
-    qw: f64, qx: f64, qy: f64, qz: f64,
-    utime: u64,
-}
 
 fn env_f64(key: &str, default: f64) -> f64 {
     std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
@@ -81,8 +71,7 @@ fn find_ue5_editor() -> Option<std::path::PathBuf> {
 }
 
 /// Write Saved/Config/MacEditor/GameUserSettings.ini with the correct
-/// resolution, windowed mode, and FPS cap. UE5 reads this file at startup
-/// and it overrides command-line args.
+/// resolution, windowed mode, and FPS cap.
 fn write_game_user_settings(project_dir: &std::path::Path, res_x: u32, res_y: u32, fps: u32) -> Result<()> {
     let config_dir = project_dir.parent().unwrap().join("Saved/Config/MacEditor");
     std::fs::create_dir_all(&config_dir)?;
@@ -227,15 +216,11 @@ pub fn run() -> Result<()> {
     let req_sub = topics::sim::request::subscribe(&node)?;
     let status_pub = topics::sim::status::publish(&node)?;
 
-    let udp = UdpSocket::bind("0.0.0.0:0")?;
-    let ue5_addr = format!("127.0.0.1:{UE5_UDP_PORT}");
-    info!("sending UDP pose to {ue5_addr}");
-
     let mut current = Pose::origin();
     let mut target = Pose::origin();
     let tick = Duration::from_secs(1) / TICK_HZ as u32;
 
-    info!("ready");
+    info!("ready (UE5 reads SimStatus via iceoryx2 shared memory)");
 
     loop {
         let t0 = Instant::now();
@@ -264,16 +249,6 @@ pub fn run() -> Result<()> {
             },
             utime,
         })?;
-
-        let pkt = UdpPosePacket {
-            x: current.x, y: current.y, z: current.z,
-            qw: current.qw, qx: current.qx, qy: current.qy, qz: current.qz,
-            utime,
-        };
-        let bytes: &[u8] = unsafe {
-            std::slice::from_raw_parts(&pkt as *const UdpPosePacket as *const u8, std::mem::size_of::<UdpPosePacket>())
-        };
-        let _ = udp.send_to(bytes, &ue5_addr);
 
         let elapsed = t0.elapsed();
         if elapsed < tick { std::thread::sleep(tick - elapsed); }

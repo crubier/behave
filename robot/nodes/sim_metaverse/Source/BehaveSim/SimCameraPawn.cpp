@@ -1,10 +1,6 @@
 #include "SimCameraPawn.h"
-#include "SimBridge.h"
+#include "IoxBridge.h"
 #include "Camera/CameraComponent.h"
-#include "Networking.h"
-#include "SocketSubsystem.h"
-
-static constexpr int32 UDP_PORT = 9876;
 
 ASimCameraPawn::ASimCameraPawn()
 {
@@ -20,29 +16,14 @@ void ASimCameraPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ISocketSubsystem* SocketSub = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	if (!SocketSub)
+	IoxSub = FIoxSimSubscriber::Create("behave/SimStatus");
+	if (IoxSub)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] No socket subsystem"));
-		return;
-	}
-
-	UdpSocket = FUdpSocketBuilder(TEXT("SimMetaverseSocket"))
-		.AsNonBlocking()
-		.AsReusable()
-		.BoundToAddress(FIPv4Address::Any)
-		.BoundToPort(UDP_PORT)
-		.Build();
-
-	if (UdpSocket)
-	{
-		int32 BufferSize = 65536;
-		UdpSocket->SetReceiveBufferSize(BufferSize, BufferSize);
-		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] UDP socket listening on port %d"), UDP_PORT);
+		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] iceoryx2 subscriber ready"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] Failed to bind UDP socket on port %d"), UDP_PORT);
+		UE_LOG(LogTemp, Error, TEXT("[BehaveSim] failed to create iceoryx2 subscriber"));
 	}
 }
 
@@ -50,39 +31,19 @@ void ASimCameraPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!UdpSocket)
+	if (!IoxSub)
 	{
 		return;
 	}
 
-	// Drain all pending UDP packets, keep the latest pose
-	FSimPosePacket Pkt;
-	bool bGotPose = false;
-
-	uint32 PendingSize = 0;
-	while (UdpSocket->HasPendingData(PendingSize))
-	{
-		uint8 Buffer[128];
-		int32 BytesRead = 0;
-		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-
-		if (UdpSocket->RecvFrom(Buffer, sizeof(Buffer), BytesRead, *Sender))
-		{
-			if (BytesRead == sizeof(FSimPosePacket))
-			{
-				FMemory::Memcpy(&Pkt, Buffer, sizeof(FSimPosePacket));
-				bGotPose = true;
-			}
-		}
-	}
-
-	if (bGotPose)
+	FIoxPose Pose;
+	if (IoxSub->Receive(Pose))
 	{
 		// Schema uses meters; UE5 uses centimetres.
-		const FVector Location(Pkt.X * 100.0, Pkt.Y * 100.0, Pkt.Z * 100.0);
+		const FVector Location(Pose.X * 100.0, Pose.Y * 100.0, Pose.Z * 100.0);
 
 		// Quaternion order: UE5 FQuat(X, Y, Z, W)
-		const FQuat Rotation(Pkt.QX, Pkt.QY, Pkt.QZ, Pkt.QW);
+		const FQuat Rotation(Pose.QX, Pose.QY, Pose.QZ, Pose.QW);
 
 		SetActorLocationAndRotation(Location, Rotation.IsNormalized() ? Rotation : FQuat::Identity);
 	}
@@ -90,12 +51,10 @@ void ASimCameraPawn::Tick(float DeltaTime)
 
 void ASimCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (UdpSocket)
+	if (IoxSub)
 	{
-		UdpSocket->Close();
-		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(UdpSocket);
-		UdpSocket = nullptr;
-		UE_LOG(LogTemp, Log, TEXT("[BehaveSim] UDP socket closed"));
+		delete IoxSub;
+		IoxSub = nullptr;
 	}
 
 	Super::EndPlay(EndPlayReason);

@@ -4,12 +4,12 @@
 #include "GameFramework/Pawn.h"
 #include "SimCameraPawn.generated.h"
 
-struct FSimPosePacket;
+class FIoxSimSubscriber;
 
 /**
- * Camera pawn driven by UDP pose packets from sim_metaverse.
+ * Camera pawn driven by iceoryx2 pose data from sim_metaverse.
  *
- * Listens on UDP port 9876 for 64-byte FSimPosePacket structs
+ * Subscribes to the behave/SimStatus topic via shared memory
  * and teleports the camera to the received pose each frame.
  */
 UCLASS()
@@ -28,5 +28,5 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	class UCameraComponent* CameraComp;
 
-	class FSocket* UdpSocket = nullptr;
+	FIoxSimSubscriber* IoxSub = nullptr;
 };
