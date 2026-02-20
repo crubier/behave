@@ -10,3 +10,4 @@ pub mod behave;
 pub mod communicate;
 pub mod gcs_mock;
 pub mod foxglove;
+pub mod video_encoder;

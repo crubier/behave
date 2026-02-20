@@ -20,6 +20,7 @@ iceoryx2-bb-container = "0.7"
 foxglove = "0.17"
 prost-reflect = { version = "0.14", features = ["serde"] }
 serde_json = "1"
+openh264 = "0.9"
 
 [build-dependencies]
 prost-build = "0.13"
@@ -75,6 +76,10 @@ path = "robot/nodes/gcs_mock/main.rs"
 [[bin]]
 name = "node-foxglove"
 path = "robot/nodes/foxglove/main.rs"
+
+[[bin]]
+name = "node-video-encoder"
+path = "robot/nodes/video_encoder/main.rs"
 
 # ── Runmodes ────────────────────────────────────────────────────
 

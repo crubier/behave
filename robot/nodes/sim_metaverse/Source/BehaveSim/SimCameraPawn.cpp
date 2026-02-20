@@ -20,6 +20,8 @@ ASimCameraPawn::ASimCameraPawn()
 	SceneCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCapture"));
 	SceneCapture->SetupAttachment(CameraComp);
 	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	SceneCapture->bCaptureEveryFrame = true;
+	SceneCapture->bCaptureOnMovement = false;
 }
 
 void ASimCameraPawn::BeginPlay()
@@ -70,14 +72,20 @@ void ASimCameraPawn::Tick(float DeltaTime)
 		if (Resource)
 		{
 			TArray<FColor> Pixels;
-			Resource->ReadPixels(Pixels);
-
-			if (Pixels.Num() == IOX_FRAME_WIDTH * IOX_FRAME_HEIGHT)
+			if (Resource->ReadPixels(Pixels))
 			{
-				uint64_t Utime = static_cast<uint64_t>(
-					FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64()) * 1000.0);
-				iox_frame_publisher_send(FramePub, Utime,
-					reinterpret_cast<const uint8_t*>(Pixels.GetData()));
+				if (Pixels.Num() == IOX_FRAME_WIDTH * IOX_FRAME_HEIGHT)
+				{
+					uint64_t Utime = static_cast<uint64_t>(
+						FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64()) * 1000.0);
+					bool bSent = iox_frame_publisher_send(FramePub, Utime,
+						reinterpret_cast<const uint8_t*>(Pixels.GetData()));
+					static int32 FrameCount = 0;
+					if (++FrameCount % 30 == 1)
+					{
+						UE_LOG(LogTemp, Log, TEXT("[BehaveSim] frame %d: %d pixels, sent=%d"), FrameCount, Pixels.Num(), bSent);
+					}
+				}
 			}
 		}
 	}

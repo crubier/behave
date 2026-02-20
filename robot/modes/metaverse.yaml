@@ -13,6 +13,7 @@ nodes:
     ue_res_x: 1920
     ue_res_y: 1080
     ue_fps: 30
+  video-encoder:
   behave:
   communicate:
   gcs-mock:
